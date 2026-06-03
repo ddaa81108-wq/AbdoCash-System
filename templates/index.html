@@ -4397,7 +4397,42 @@
         window.addEventListener('load', function() {
             if (!sessionStorage.getItem('abdo_logged_in')) {
                 initAuthSystem();
+            }// ======== كود الربط بالسحابة (MongoDB) ========
+        let _saveDBBusy = false;
+        window.saveDB = async function() {
+            if(_saveDBBusy) return;
+            _saveDBBusy = true;
+            try {
+                // 1. الحفظ في المتصفح كنسخة احتياطية
+                localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
+                
+                // 2. الإرسال لخزنة MongoDB السحابية
+                await fetch('/api/save_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sysDB)
+                });
+            } catch(e) { console.error("خطأ في الاتصال:", e); }
+            
+            setTimeout(() => { _saveDBBusy = false; }, 300);
+        };
+
+        let originalOnload = window.onload;
+        window.onload = async function() {
+            try {
+                // جلب البيانات من MongoDB أول ما الموقع يفتح
+                let response = await fetch('/api/load_data');
+                let result = await response.json();
+                if (result.status === 'success' && result.data) { 
+                    sysDB = result.data; 
+                }
+            } catch(e) { console.log("جاري العمل محلياً..."); }
+            
+            if(typeof originalOnload === 'function') {
+                originalOnload();
             }
+        };
+        // ==============================================
             updateUserChip();
         });
     </script>
