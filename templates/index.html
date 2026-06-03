@@ -3144,4 +3144,939 @@
             else if (period === 'monthly') filtered = logs.filter(t => (now - (t.ts || t.id)) <= 30 * 24 * 60 * 60 * 1000);
             else if (period === 'yearly') filtered = logs.filter(t => (now - (t.ts || t.id)) <= 365 * 24 * 60 * 60 * 1000);
 
-            let totalIn = filtered.filter
+           let totalIn = filtered.filter(t => t.type === 'in').reduce((s, t) => s + Math.floor(t.amount), 0);
+            let totalOut = filtered.filter(t => t.type === 'out').reduce((s, t) => s + Math.floor(t.amount), 0);
+            let vault = sysDB.treasury_vaults.find(v => v.id === txActiveVault) || { name: 'الخزينة الرئيسية' };
+            let periodLabels = { daily: 'يومي', weekly: 'أسبوعي', monthly: 'شهري', yearly: 'سنوي', all: 'كامل' };
+            let dateStr = new Date().toLocaleDateString('ar-EG');
+
+            let rows = filtered.map((t, i) => {
+                let ts = t.ts || t.id;
+                let d = new Date(ts).toLocaleDateString('ar-EG');
+                let isIn = t.type === 'in';
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td>${d}</td>
+                    <td style="color:${isIn ? '#059669' : '#dc2626'};font-weight:900;">${isIn ? '+' : '-'}${Math.floor(t.amount)} د.ل</td>
+                    <td>${t.source || '-'}</td>
+                    <td style="color:${isIn ? '#059669' : '#dc2626'}">${isIn ? 'وارد' : 'منصرف'}</td>
+                    <td>${t.desc || '-'}</td>
+                </tr>`;
+            }).join('');
+
+            let w = window.open('', '_blank', 'width=900,height=700');
+            w.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head>
+            <meta charset="UTF-8"><title>تقرير الخزينة - ${periodLabels[period] || 'كامل'}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
+                *{margin:0;padding:0;box-sizing:border-box} body{font-family:'Tajawal',sans-serif;direction:rtl;background:#fff;color:#0f172a;padding:20px;font-size:13px}
+                .header{text-align:center;border-bottom:3px solid #0369a1;padding-bottom:15px;margin-bottom:20px;}
+                .header h1{font-size:22px;font-weight:900;color:#0369a1} .header p{color:#64748b;margin-top:5px;font-size:13px}
+                .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+                .sbox{background:#f8fafc;border-radius:8px;padding:14px;text-align:center;border:1px solid #e2e8f0}
+                .sbox .val{font-size:22px;font-weight:900;} .sbox .lbl{font-size:11px;color:#64748b;margin-top:4px}
+                table{width:100%;border-collapse:collapse;margin-top:10px}
+                th{background:#0369a1;color:#fff;padding:8px 6px;font-size:12px;text-align:center}
+                td{padding:6px 8px;border:1px solid #e2e8f0;text-align:center;font-size:12px}
+                tr:nth-child(even) td{background:#f8fafc}
+                .footer{text-align:center;margin-top:20px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px}
+                @media print{.no-print{display:none}}
+            </style></head><body>
+            <div class="header">
+                <h1>💰 تقرير الخزينة — ${vault.name}</h1>
+                <p>الفترة: ${periodLabels[period] || 'كامل'} • التاريخ: ${dateStr}</p>
+            </div>
+            <div class="summary">
+                <div class="sbox"><div class="val" style="color:#059669">${totalIn} د.ل</div><div class="lbl">إجمالي الوارد</div></div>
+                <div class="sbox"><div class="val" style="color:#dc2626">${totalOut} د.ل</div><div class="lbl">إجمالي المنصرف</div></div>
+                <div class="sbox"><div class="val" style="color:${totalIn-totalOut >= 0 ? '#059669' : '#dc2626'}">${totalIn - totalOut} د.ل</div><div class="lbl">الصافي</div></div>
+            </div>
+            <table>
+                <thead><tr><th>ت</th><th>التاريخ</th><th>المبلغ</th><th>المصدر/البند</th><th>النوع</th><th>الملاحظة</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="6" style="text-align:center;padding:20px;">لا توجد حركات</td></tr>'}</tbody>
+            </table>
+            <div class="footer">المنظومة المالية المركزية — تقرير الخزينة ${dateStr}</div>
+            <script>window.onload=function(){window.print();window.onafterprint=function(){window.close()}}<\/script>
+            </body></html>`);
+            w.document.close();
+            logAction(`تصدير تقرير خزينة ${periodLabels[period] || 'كامل'}`, 'الخزينة');
+        }
+
+        // --- تصدير Excel للخزينة ---
+        function exportTreasuryExcel() {
+            let logs = (sysDB.treasury || []).filter(t => (t.vault_id || 0) === txActiveVault);
+            let vault = sysDB.treasury_vaults.find(v => v.id === txActiveVault) || { name: 'الخزينة الرئيسية' };
+            
+            let headers = ['ت', 'التاريخ', 'النوع', 'المبلغ (د.ل)', 'المصدر/البند', 'الفئة', 'الملاحظة'];
+            let rows = logs.map((t, i) => {
+                let ts = t.ts || t.id;
+                return [i + 1, new Date(ts).toLocaleDateString('ar-EG'), t.type === 'in' ? 'وارد' : 'منصرف', Math.floor(t.amount), t.source || '', t.category || '', t.desc || ''];
+            });
+            let totalIn = logs.filter(t => t.type === 'in').reduce((s, t) => s + Math.floor(t.amount), 0);
+            let totalOut = logs.filter(t => t.type === 'out').reduce((s, t) => s + Math.floor(t.amount), 0);
+            rows.push(['', '', 'إجمالي الوارد', totalIn, '', '', '']);
+            rows.push(['', '', 'إجمالي المنصرف', totalOut, '', '', '']);
+            rows.push(['', '', 'الصافي', totalIn - totalOut, '', '', '']);
+
+            try {
+                let wb = XLSX.utils.book_new();
+                let ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+                ws['!cols'] = headers.map(() => ({ wch: 18 }));
+                XLSX.utils.book_append_sheet(wb, ws, vault.name);
+                let ds = new Date().toISOString().slice(0, 10);
+                XLSX.writeFile(wb, `تقرير_الخزينة_${ds}.xlsx`);
+                showToast('✅ تم تصدير Excel بنجاح!', 'success');
+                logAction('تصدير Excel للخزينة', 'الخزينة');
+            } catch (e) {
+                showToast('❌ فشل التصدير: ' + e.message, 'error');
+            }
+        }
+
+        // --- حذف حركة خزينة ---
+        function deleteTreasuryLog(id) {
+            if (!confirm('تأكيد حذف هذه الحركة؟')) return;
+            let item = sysDB.treasury.find(t => t.id === id);
+            if (item) logTreasuryAction('حذف حركة', item.amount, `${item.source} - ${item.type === 'in' ? 'وارد' : 'منصرف'}`);
+            sysDB.treasury = sysDB.treasury.filter(t => t.id !== id);
+            logAction('حذف حركة من الخزينة.', 'الخزينة');
+            saveDB(); renderActiveSection();
+        }
+
+        // --- نسخة احتياطية للخزينة ---
+        function backupTreasury() {
+            let data = {
+                treasury: sysDB.treasury,
+                treasury_vaults: sysDB.treasury_vaults,
+                treasury_audit: sysDB.treasury_audit,
+                exported_at: new Date().toISOString()
+            };
+            let blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            let ds = new Date().toISOString().slice(0, 10);
+            a.href = url; a.download = `نسخة_خزينة_${ds}.json`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            logAction('نسخة احتياطية من الخزينة', 'الخزينة');
+            showToast('✅ تم حفظ نسخة الخزينة!', 'success');
+        }
+
+        // --- ===== الرندر الرئيسي للخزينة ===== ---
+        function renderTreasurySection() {
+            const container = document.getElementById('dynamicSectionContent');
+            upgradeTreasuryDB();
+
+            let stats = getTreasuryStats(txActiveVault);
+            let allStats = getAllTreasuryStats();
+            let alerts = getTreasuryAlerts();
+            let vault = sysDB.treasury_vaults.find(v => v.id === txActiveVault) || sysDB.treasury_vaults[0];
+            let logs = (sysDB.treasury || []).filter(t => (t.vault_id || 0) === txActiveVault);
+
+            let filtered = txSearchQuery
+                ? logs.filter(t => (t.source || '').includes(txSearchQuery) || (t.desc || '').includes(txSearchQuery) || (t.category || '').includes(txSearchQuery))
+                : logs;
+
+            let spendPct = stats.totalIn > 0 ? ((stats.totalOut / stats.totalIn) * 100).toFixed(0) : 0;
+            let progressClass = spendPct < 60 ? 'safe' : spendPct < 85 ? 'warn' : 'danger';
+            let netTrend = stats.todayNet > 0 ? 'trend-up' : stats.todayNet < 0 ? 'trend-down' : 'trend-neutral';
+            let netTrendText = stats.todayNet > 0 ? `▲ +${stats.todayNet}` : stats.todayNet < 0 ? `▼ ${stats.todayNet}` : '— صفر';
+
+            let kpiHtml = `
+            <div class="tx-kpi-row">
+                <div class="tx-kpi balance">
+                    <div class="tx-kpi-icon">🏦</div>
+                    <div class="tx-kpi-label">الرصيد المتاح</div>
+                    <div class="tx-kpi-value">${stats.balance.toLocaleString()}</div>
+                    <div class="tx-kpi-sub">دينار ليبي</div>
+                    <div class="tx-progress-wrap">
+                        <div class="tx-progress-label"><span>نسبة الإنفاق</span><span>${spendPct}%</span></div>
+                        <div class="tx-progress-track"><div class="tx-progress-fill ${progressClass}" style="width:${Math.min(spendPct, 100)}%"></div></div>
+                    </div>
+                </div>
+                <div class="tx-kpi income">
+                    <div class="tx-kpi-icon">📥</div>
+                    <div class="tx-kpi-label">إجمالي المقبوضات</div>
+                    <div class="tx-kpi-value">${stats.totalIn.toLocaleString()}</div>
+                    <div class="tx-kpi-sub">إجمالي الوارد</div>
+                </div>
+                <div class="tx-kpi expense">
+                    <div class="tx-kpi-icon">📤</div>
+                    <div class="tx-kpi-label">إجمالي المدفوعات</div>
+                    <div class="tx-kpi-value">${stats.totalOut.toLocaleString()}</div>
+                    <div class="tx-kpi-sub">إجمالي المنصرف</div>
+                </div>
+                <div class="tx-kpi net">
+                    <div class="tx-kpi-trend ${netTrend}">${netTrendText}</div>
+                    <div class="tx-kpi-icon">📊</div>
+                    <div class="tx-kpi-label">صافي الحركة اليومية</div>
+                    <div class="tx-kpi-value">${stats.todayNet > 0 ? '+' : ''}${stats.todayNet.toLocaleString()}</div>
+                    <div class="tx-kpi-sub">وارد: ${stats.todayIn} | صادر: ${stats.todayOut}</div>
+                </div>
+            </div>`;
+
+            let alertsHtml = '';
+            if (alerts.length > 0) {
+                alertsHtml = `<div class="tx-alerts">
+                    ${alerts.map((a, i) => `
+                        <div class="tx-alert tx-alert-${a.type}">
+                            <span>${a.icon}</span>
+                            <span>${a.msg}</span>
+                            <button class="tx-alert-close" onclick="txAlertsDismissed.push('${a.msg.replace(/'/g, '')}'); renderTreasurySection()">✕</button>
+                        </div>
+                    `).join('')}
+                </div>`;
+            }
+
+            let actionsHtml = `
+            <div class="tx-action-strip">
+                <button class="tx-btn tx-btn-deposit" onclick="openTreasuryModal('in')">📥 إيداع</button>
+                <button class="tx-btn tx-btn-withdraw" onclick="openTreasuryModal('out')">📤 سحب / مصروف</button>
+                <button class="tx-btn tx-btn-transfer" onclick="openTransferModal()">🔄 تحويل بين الخزائن</button>
+                <button class="tx-btn tx-btn-ai" onclick="txCurrentTab='ai'; renderTreasurySection(); runAIAnalysis()">🤖 التحليل الذكي</button>
+                <button class="tx-btn tx-btn-report" onclick="txCurrentTab='reports'; renderTreasurySection()">📋 التقارير</button>
+                <button class="tx-btn tx-btn-backup" onclick="backupTreasury()">💾 نسخة احتياطية</button>
+            </div>`;
+
+            let tabs = [
+                { id: 'movements', label: '📜 كشف الحركات' },
+                { id: 'vaults', label: '🏦 الخزائن' },
+                { id: 'ai', label: '🤖 الذكاء الاصطناعي' },
+                { id: 'reports', label: '📊 التقارير' },
+                { id: 'audit', label: '🔍 سجل العمليات' },
+                { id: 'perms', label: '🔐 الصلاحيات' }
+            ];
+            let tabsHtml = `<div class="tx-tabs">
+                ${tabs.map(t => `<button class="tx-tab ${txCurrentTab === t.id ? 'active' : ''}" onclick="txCurrentTab='${t.id}'; renderTreasurySection()">${t.label}</button>`).join('')}
+            </div>`;
+
+            let tabContent = '';
+
+            if (txCurrentTab === 'movements') {
+                let rows = filtered.map((item, idx) => {
+                    let isOut = item.type === 'out';
+                    let amtColor = isOut ? 'var(--danger)' : 'var(--success)';
+                    let sign = isOut ? '−' : '+';
+                    let ts = item.ts || item.id;
+                    let dateStr = new Date(ts).toLocaleDateString('ar-EG');
+                    let timeStr = new Date(ts).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                    let badgeClass = isOut ? 'tx-badge-out' : 'tx-badge-in';
+                    let badgeText = item.category === 'تحويل' ? 'تحويل' : isOut ? 'منصرف' : 'وارد';
+                    let badgeCSS = item.category === 'تحويل' ? 'tx-badge-transfer' : badgeClass;
+                    return `<tr style="background:${isOut ? 'rgba(248,113,113,0.03)' : 'rgba(52,211,153,0.03)'}">
+                        <td class="serial-cell">${idx + 1}</td>
+                        <td style="font-size:11px;color:var(--text-muted);">${dateStr}<br><span style="font-size:10px;">${timeStr}</span></td>
+                        <td style="color:${amtColor};font-weight:900;font-size:15px;direction:ltr;">${sign} ${Math.floor(item.amount).toLocaleString()}</td>
+                        <td><b>${item.source || '—'}</b></td>
+                        <td><span class="tx-badge ${badgeCSS}">${badgeText}</span></td>
+                        <td style="color:var(--text-muted);font-size:11px;">${item.desc || '—'}</td>
+                        <td><button class="btn-mini b-full" onclick="deleteTreasuryLog(${item.id})">❌</button></td>
+                    </tr>`;
+                }).join('');
+
+                tabContent = `
+                <div class="tx-table-wrap">
+                    <div class="tx-table-header">
+                        <span class="tx-table-title">📜 كشف حركة الخزينة — ${vault.icon} ${vault.name} (${filtered.length} حركة)</span>
+                        <input class="tx-search-box" placeholder="🔍 بحث في الحركات..." value="${txSearchQuery}" oninput="txSearchQuery=this.value; renderTreasurySection()">
+                    </div>
+                    <div style="overflow-x:auto;">
+                    <table>
+                        <thead><tr>
+                            <th class="serial-cell">ت</th><th>التاريخ</th><th>المبلغ (د.ل)</th><th>المصدر/البند</th><th>النوع</th><th>البيان</th><th>حذف</th>
+                        </tr></thead>
+                        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted);">لا توجد حركات في الخزينة</td></tr>'}</tbody>
+                    </table>
+                    </div>
+                </div>`;
+            }
+
+            else if (txCurrentTab === 'vaults') {
+                let vaultsGrid = sysDB.treasury_vaults.map(v => {
+                    let vs = getTreasuryStats(v.id);
+                    return `<div class="tx-vault ${v.id === txActiveVault ? 'selected' : ''}" onclick="txActiveVault=${v.id}; txCurrentTab='movements'; renderTreasurySection()">
+                        ${v.id === txActiveVault ? '<span class="tx-vault-badge">✓ نشطة</span>' : ''}
+                        <div style="font-size:28px;margin-bottom:8px;">${v.icon}</div>
+                        <div class="tx-vault-name">${v.name}</div>
+                        <div class="tx-vault-balance">${vs.balance.toLocaleString()} د.ل</div>
+                        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+                            وارد: <span style="color:var(--success);">${vs.totalIn}</span> | منصرف: <span style="color:var(--danger);">${vs.totalOut}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                tabContent = `
+                <div class="tx-vaults-grid">${vaultsGrid}</div>
+                <button class="tx-btn tx-btn-deposit" style="max-width:240px;" onclick="addNewVault()">➕ إضافة خزينة جديدة</button>`;
+            }
+
+            else if (txCurrentTab === 'ai') {
+                tabContent = `
+                <div class="ai-panel">
+                    <div class="ai-header">
+                        <div class="ai-icon">🤖</div>
+                        <div>
+                            <div class="ai-title">المساعد المالي الذكي</div>
+                            <div class="ai-subtitle">تحليل متقدم للمصروفات والإيرادات وتوقعات السيولة</div>
+                        </div>
+                        <button onclick="txAiLoaded=false; runAIAnalysis()" style="margin-right:auto;background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.3);color:#a78bfa;border-radius:6px;padding:6px 14px;cursor:pointer;font-weight:900;font-size:12px;font-family:Tajawal,sans-serif;">🔄 تحديث التحليل</button>
+                    </div>
+                    <div id="tx-ai-content">
+                        <div class="ai-loading">اضغط <b>"تحديث التحليل"</b> لبدء التحليل الذكي بالذكاء الاصطناعي</div>
+                    </div>
+                </div>`;
+                setTimeout(() => { if (!txAiLoaded) runAIAnalysis(); }, 300);
+            }
+
+            else if (txCurrentTab === 'reports') {
+                tabContent = `
+                <div style="margin-bottom:16px;">
+                    <h3 style="color:var(--primary);font-size:14px;margin-bottom:12px;">📋 تقارير الخزينة</h3>
+                    <div class="tx-report-grid">
+                        <button class="tx-report-btn" onclick="exportTreasuryPDF('daily')"><span class="icon">📅</span>تقرير يومي</button>
+                        <button class="tx-report-btn" onclick="exportTreasuryPDF('weekly')"><span class="icon">📆</span>تقرير أسبوعي</button>
+                        <button class="tx-report-btn" onclick="exportTreasuryPDF('monthly')"><span class="icon">🗓️</span>تقرير شهري</button>
+                        <button class="tx-report-btn" onclick="exportTreasuryPDF('yearly')"><span class="icon">📊</span>تقرير سنوي</button>
+                        <button class="tx-report-btn" onclick="exportTreasuryPDF('all')"><span class="icon">📄</span>كشف كامل PDF</button>
+                        <button class="tx-report-btn" onclick="exportTreasuryExcel()"><span class="icon">📗</span>تصدير Excel</button>
+                        <button class="tx-report-btn" onclick="window.print()"><span class="icon">🖨️</span>طباعة</button>
+                        <button class="tx-report-btn" onclick="backupTreasury()"><span class="icon">💾</span>نسخة احتياطية</button>
+                    </div>
+                </div>
+                ${buildMiniChart(logs)}`;
+            }
+
+            else if (txCurrentTab === 'audit') {
+                let auditLogs = (sysDB.treasury_audit || []).slice(0, 50);
+                let auditRows = auditLogs.map((l, i) => `
+                    <tr>
+                        <td class="serial-cell">${i + 1}</td>
+                        <td style="font-size:11px;">${l.time}</td>
+                        <td style="font-weight:900;">${l.action}</td>
+                        <td style="color:var(--success);">${l.amount > 0 ? Math.floor(l.amount) + ' د.ل' : '—'}</td>
+                        <td style="color:var(--text-muted);font-size:11px;">${l.details || '—'}</td>
+                    </tr>`).join('');
+                tabContent = `
+                <div class="tx-table-wrap">
+                    <div class="tx-table-header">
+                        <span class="tx-table-title">🔍 سجل عمليات الخزينة (${auditLogs.length} سجل)</span>
+                    </div>
+                    <div style="overflow-x:auto;max-height:60vh;">
+                    <table>
+                        <thead><tr><th class="serial-cell">ت</th><th>الوقت</th><th>العملية</th><th>المبلغ</th><th>التفاصيل</th></tr></thead>
+                        <tbody>${auditRows || '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">لا توجد سجلات</td></tr>'}</tbody>
+                    </table>
+                    </div>
+                </div>`;
+            }
+
+            else if (txCurrentTab === 'perms') {
+                let roles = [
+                    { name: '👑 مدير النظام', perms: ['عرض الأرصدة', 'إيداع', 'سحب', 'تحويل', 'حذف حركات', 'إضافة خزائن', 'تصدير', 'سجل العمليات', 'إعدادات التنبيهات'], allow: [true, true, true, true, true, true, true, true, true] },
+                    { name: '💼 مدير مالي', perms: ['عرض الأرصدة', 'إيداع', 'سحب', 'تحويل', 'حذف حركات', 'إضافة خزائن', 'تصدير', 'سجل العمليات'], allow: [true, true, true, true, true, false, true, true] },
+                    { name: '📊 محاسب', perms: ['عرض الأرصدة', 'إيداع', 'سحب', 'تحويل', 'حذف حركات', 'تصدير'], allow: [true, true, true, false, false, true] },
+                    { name: '👤 مستخدم عادي', perms: ['عرض الأرصدة', 'إيداع', 'سحب'], allow: [true, true, false] }
+                ];
+                tabContent = `
+                <div style="margin-bottom:14px;">
+                    <h3 style="color:var(--primary);font-size:14px;margin-bottom:12px;">🔐 هيكل الصلاحيات</h3>
+                    <div class="tx-perm-grid">
+                        ${roles.map(r => `
+                        <div class="tx-perm-card">
+                            <div class="tx-perm-role">${r.name}</div>
+                            ${r.perms.map((p, i) => `
+                                <div class="tx-perm-item ${r.allow[i] ? 'allow' : 'deny'}">
+                                    ${r.allow[i] ? '✅' : '❌'} ${p}
+                                </div>`).join('')}
+                        </div>`).join('')}
+                    </div>
+                </div>`;
+            }
+
+            container.innerHTML = `
+                <div class="tx-dashboard">
+                    ${kpiHtml}
+                    ${alertsHtml}
+                    ${actionsHtml}
+                    ${tabsHtml}
+                    ${tabContent}
+                </div>
+
+                <div class="modal-overlay" id="txTransferModal" style="display:none;">
+                    <div class="modal-box" style="max-width:420px; text-align:center;">
+                        <h3 style="color:var(--primary);">🔄 تحويل بين الخزائن</h3>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                            <div>
+                                <label style="font-size:12px;color:var(--text-muted);">من الخزينة</label>
+                                <select id="txTransferFrom" class="glass-input" style="width:100%;height:35px;margin-top:4px;"></select>
+                            </div>
+                            <div>
+                                <label style="font-size:12px;color:var(--text-muted);">إلى الخزينة</label>
+                                <select id="txTransferTo" class="glass-input" style="width:100%;height:35px;margin-top:4px;"></select>
+                            </div>
+                        </div>
+                        <input type="number" id="txTransferAmount" class="glass-input" style="width:100%;text-align:center;font-size:20px;height:48px;margin-bottom:10px;" placeholder="المبلغ (د.ل)">
+                        <input type="text" id="txTransferNote" class="glass-input" style="width:100%;margin-bottom:14px;" placeholder="ملاحظة (اختياري)">
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-g" style="flex:1;background:var(--primary);color:#000;" onclick="submitTransfer()">✅ تأكيد التحويل</button>
+                            <button class="btn-g" style="flex:0.5;background:var(--danger);" onclick="document.getElementById('txTransferModal').style.display='none'">إلغاء</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function buildMiniChart(logs) {
+            if (!logs.length) return '';
+            let months = {};
+            logs.forEach(t => {
+                let d = new Date(t.ts || t.id);
+                let key = `${d.getMonth() + 1}/${d.getFullYear()}`;
+                if (!months[key]) months[key] = { in: 0, out: 0 };
+                if (t.type === 'in') months[key].in += Math.floor(t.amount);
+                else months[key].out += Math.floor(t.amount);
+            });
+            let keys = Object.keys(months).slice(-6);
+            if (!keys.length) return '';
+            let maxVal = Math.max(...keys.flatMap(k => [months[k].in, months[k].out])) || 1;
+
+            let bars = keys.map(k => {
+                let inH = Math.max((months[k].in / maxVal) * 70, 4);
+                let outH = Math.max((months[k].out / maxVal) * 70, 4);
+                return `<div style="flex:1;display:flex;gap:2px;align-items:flex-end;flex-direction:column;position:relative;">
+                    <div style="display:flex;gap:2px;align-items:flex-end;width:100%">
+                        <div class="tx-bar tx-bar-in" style="height:${inH}px;flex:1;" title="وارد: ${months[k].in}"></div>
+                        <div class="tx-bar tx-bar-out" style="height:${outH}px;flex:1;" title="منصرف: ${months[k].out}"></div>
+                    </div>
+                    <div style="font-size:9px;color:var(--text-muted);text-align:center;width:100%;margin-top:4px;">${k}</div>
+                </div>`;
+            }).join('');
+
+            return `<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;">
+                <div style="font-size:12px;font-weight:900;color:var(--text-muted);margin-bottom:10px;">📈 تاريخ الحركات (آخر 6 أشهر)
+                    <span style="color:var(--success);margin-right:12px;">■ وارد</span>
+                    <span style="color:var(--danger);">■ منصرف</span>
+                </div>
+                <div class="tx-chart-bar">${bars}</div>
+            </div>`;
+        }
+
+        let treasuryActionType = 'in';
+
+        function renderActiveSection() {
+            autoCloseDay(); let activeFocus = document.activeElement.id;
+            const container = document.getElementById('dynamicSectionContent');
+
+            if ([1, 2, 3].includes(currentTabNum)) {
+                let dbKey = currentTabNum === 1 ? 'customers' : currentTabNum === 2 ? 'companies' : 'wholesale';
+                let activePageData = currentTabNum === 1 ? sysDB.customer_pages[activeCustomerPageIndex] : currentTabNum === 2 ? sysDB.company_pages[activeCompanyPageIndex] : sysDB.wholesale_pages[activeWholesalePageIndex];
+                let searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+                let targetDebts = activePageData.debts;
+                let totalDebts = targetDebts.reduce((sum, item) => sum + Math.floor(item.amount), 0);
+                let filteredList = targetDebts.filter(item => item.name.toLowerCase().includes(searchQuery));
+                let third = Math.ceil(filteredList.length / 3);
+
+                let renderRows = (list, offset) => list.map((item, index) => {
+                    let amtStyle = 'color:var(--danger);';
+                    let dueBadge = '';
+                    if(item.dueDate) {
+                        let daysLeft = Math.floor((item.dueDate - Date.now()) / (1000*60*60*24));
+                        if(daysLeft < 0) dueBadge = `<br><span class="due-badge due-overdue">⏰ متأخر ${Math.abs(daysLeft)} يوم</span>`;
+                        else if(daysLeft <= 7) dueBadge = `<br><span class="due-badge due-warn">📅 باقي ${daysLeft} يوم</span>`;
+                        else dueBadge = `<br><span class="due-badge due-ok">📅 ${daysLeft} يوم</span>`;
+                    }
+                    let daysSince = getDaysSince(item.lastPaymentDate || item.id);
+                    let ageBadge = daysSince >= 60 ? `<span class="due-badge due-overdue" style="margin-right:3px;">🔴 ${daysSince}ي</span>` : daysSince >= 30 ? `<span class="due-badge due-warn" style="margin-right:3px;">🟡 ${daysSince}ي</span>` : '';
+                    return `<tr><td class="serial-cell">${offset + index + 1}</td><td><b>${item.name}</b>${dueBadge}</td><td style="${amtStyle}">${Math.floor(item.amount)}${ageBadge ? '<br>'+ageBadge : ''}</td><td style="min-width:140px;">${generateActionsHtml(dbKey, item)}</td></tr>`;
+                }).join('');
+
+                let tableHeader = `<thead><tr><th class="serial-cell">ت</th><th>الاسم</th><th>الدين</th><th>العمليات</th></tr></thead>`;
+
+                let toolbarHtml = `
+                    <div class="smart-toolbar">
+                        <div class="toolbar-group">
+                            <div class="badge-total-top">الإجمالي: ${totalDebts}</div>
+                        </div>
+                        <div class="toolbar-group">
+                            <input type="text" id="addNameInput" list="savedNames" autocomplete="off" class="glass-input" placeholder="الاسم..." style="width:120px;" onkeydown="if(event.key === 'Enter') checkAndAddNewDebt('${dbKey}')">
+                            <input type="number" id="addAmountInput" autocomplete="off" class="glass-input" placeholder="الدين" style="width:70px;" onkeydown="if(event.key === 'Enter') checkAndAddNewDebt('${dbKey}')">
+                            <input type="date" id="addDueDateInput" class="glass-input" title="تاريخ الاستحقاق (اختياري)" style="width:140px;">
+                            <button class="btn-g b-calc" style="height:30px; padding:0 10px;" onclick="openCalcModal('addAmountInput')" title="حاسبة">🧮</button>
+                            <button class="btn-g btn-add" onclick="checkAndAddNewDebt('${dbKey}')">✔️ حفظ</button>
+                        </div>
+                        <div class="toolbar-group">
+                            <input type="text" id="searchInput" autocomplete="off" class="glass-input" placeholder="🔍 فلتر..." value="${searchQuery}" oninput="renderActiveSection()" style="width:120px;">
+                        </div>
+                    </div>`;
+
+                if(currentTabNum === 2) {
+                    let tableRows = filteredList.map((item, index) => {
+                        let amtStyle = 'color:var(--warning);';
+                        let amtEndStyle = 'color:var(--danger);';
+                        return `<tr><td class="serial-cell" style="width:30px;">${index + 1}</td><td><b>${item.name}</b></td><td style="${amtStyle}">${Math.floor(item.amount)}</td><td style="min-width:140px;">${generateActionsHtml(dbKey, item)}</td><td style="${amtEndStyle}">${Math.floor(item.amount)}</td></tr>`;
+                    }).join('');
+                    let compHeader = `<thead><tr><th class="serial-cell">ت</th><th>اسم الشركة</th><th>الديون</th><th>التسديد</th><th>الباقي</th></tr></thead>`;
+                    container.innerHTML = `${toolbarHtml}<div class="table-container" style="width:100%;"><table>${compHeader}<tbody>${tableRows || '<tr><td colspan="5" style="text-align:center; padding:20px;">الجدول فارغ.</td></tr>'}</tbody></table></div>`;
+                } else {
+                    container.innerHTML = `${toolbarHtml}<div class="split-layout"><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div></div>`;
+                }
+            }
+            else if (currentTabNum === 4) {
+                let searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
+                let totalLyd = sysDB.trusts.reduce((sum, item) => sum + Math.floor(item.lyd), 0);
+                let totalEgp = sysDB.trusts.reduce((sum, item) => sum + Math.floor(item.egp), 0);
+
+                let filteredTrusts = sysDB.trusts.filter(t => t.name.toLowerCase().includes(searchQuery));
+                
+                let trustRows = filteredTrusts.map((t, index) => `<tr><td class="serial-cell">${index + 1}</td><td><b>${t.name}</b></td><td style="color:var(--success); font-weight:900;">${Math.floor(t.lyd)}</td><td style="color:var(--purple); font-weight:900;">${Math.floor(t.egp)}</td><td style="min-width:250px;">${generateTrustActionsHtml(t)}</td></tr>`).join('');
+
+                let toolbarHtml = `
+                    <div class="smart-toolbar">
+                        <div class="toolbar-group">
+                            <div class="badge-total-top" style="color:var(--success); border-color:var(--success); background:rgba(0,230,118,0.1);">ليبي: ${totalLyd}</div>
+                            <div class="badge-total-top" style="color:var(--purple); border-color:var(--purple); background:rgba(213,0,249,0.1);">مصري: ${totalEgp}</div>
+                        </div>
+                        <div class="toolbar-group">
+                            <input type="text" id="trustName" list="savedNames" autocomplete="off" class="glass-input" placeholder="صاحب الأمانة..." style="width:130px;" onkeydown="if(event.key === 'Enter') addNewTrust()">
+                            <input type="number" id="trustLyd" autocomplete="off" class="glass-input" placeholder="ليبي" style="width:60px;" onkeydown="if(event.key === 'Enter') addNewTrust()">
+                            <button class="btn-g b-calc" style="height:30px; padding:0 8px;" onclick="openCalcModal('trustLyd')" title="حاسبة">🧮</button>
+                            <input type="number" id="trustEgp" autocomplete="off" class="glass-input" placeholder="مصري" style="width:60px;" onkeydown="if(event.key === 'Enter') addNewTrust()">
+                            <button class="btn-g b-calc" style="height:30px; padding:0 8px;" onclick="openCalcModal('trustEgp')" title="حاسبة">🧮</button>
+                            <button class="btn-g btn-add" onclick="addNewTrust()">✔️ تسجيل</button>
+                        </div>
+                        <div class="toolbar-group">
+                            <input type="text" id="searchInput" autocomplete="off" class="glass-input" placeholder="🔍 فلتر..." value="${searchQuery}" oninput="renderActiveSection()" style="width:100px;">
+                        </div>
+                    </div>`;
+
+                container.innerHTML = `${toolbarHtml}<div class="table-container"><table><thead><tr><th class="serial-cell">ت</th><th>الاسم</th><th>دينار ليبي</th><th>جنيه مصري</th><th>العمليات الذكية</th></tr></thead><tbody>${trustRows || '<tr><td colspan="5" style="text-align:center; padding:40px;">لا توجد أمانات.</td></tr>'}</tbody></table></div>`;
+            }
+            
+            else if (currentTabNum === 5) {
+                renderTreasurySection();
+            }
+
+            else if (currentTabNum === 6) {
+                let records = sysDB.purchases[activeMerchant] || [];
+                
+                let merchantTabs = `
+                    <div style="display:flex; gap:10px; margin-bottom:15px; justify-content:center;">
+                        <button class="btn-g" style="flex:1; height:45px; font-weight:900; font-size:16px; border-radius:8px; transition:0.3s; background: ${activeMerchant === 'bayan' ? 'var(--primary)' : 'var(--bg-card)'}; color: ${activeMerchant === 'bayan' ? '#000' : 'var(--text-main)'}; border: 2px solid var(--primary);" onclick="switchMerchant('bayan')">🏬 التاجر: البيان</button>
+                        <button class="btn-g" style="flex:1; height:45px; font-weight:900; font-size:16px; border-radius:8px; transition:0.3s; background: ${activeMerchant === 'semsem' ? 'var(--warning)' : 'var(--bg-card)'}; color: ${activeMerchant === 'semsem' ? '#000' : 'var(--text-main)'}; border: 2px solid var(--warning);" onclick="switchMerchant('semsem')">🏬 التاجر: سمسم</button>
+                    </div>
+                `;
+
+                let totalPurchases = records.reduce((s, i) => s + i.total, 0);
+                let totalPaid = records.reduce((s, i) => s + i.paid, 0);
+                let totalRemaining = records.reduce((s, i) => s + i.remaining, 0);
+                
+                let v_remaining_egp = 0;
+                records.forEach(item => {
+                    if (item.name.includes('فودافون') && !item.parent_id) {
+                        let consumed = (item.v_c1||0) + (item.v_c2||0) + (item.v_c3||0) + (item.v_c4||0);
+                        let currentDeficit = getVodafoneDeficit(activeMerchant, item.id);
+                        let net = item.qty - consumed + currentDeficit;
+                        if (net > 0) v_remaining_egp += net;
+                    }
+                });
+
+                let vodafoneBadgeHtml = '';
+                if (v_remaining_egp > 0) {
+                    vodafoneBadgeHtml = `<div class="badge-total-top" style="font-size:15px; color:#fff; background:linear-gradient(135deg, #d500f9, #8b5cf6); border-color:var(--purple); box-shadow: 0 0 10px rgba(213,0,249,0.4);">إجمالي باقي فودافون (مصري): ${v_remaining_egp}</div>`;
+                }
+
+                let summaryHtml = `
+                    <div style="display:flex; gap:10px; justify-content:center; margin-bottom:15px; flex-wrap:wrap; align-items:center;">
+                        <div class="badge-total-top" style="font-size:15px; color:var(--text-main); background:rgba(255,255,255,0.1); border-color:var(--text-muted);">إجمالي المشتريات: ${totalPurchases}</div>
+                        <div class="badge-total-top" style="font-size:15px; color:var(--success); background:rgba(0,230,118,0.1); border-color:var(--success);">إجمالي المُسدد: ${totalPaid}</div>
+                        <div class="badge-total-top" style="font-size:15px; color:${totalRemaining >= 0 ? '#10b981' : '#ef4444'}; background:rgba(255,255,255,0.1); border-color:${totalRemaining >= 0 ? '#10b981' : '#ef4444'};">إجمالي الباقي: ${totalRemaining} د.ل</div>
+                        ${vodafoneBadgeHtml}
+                    </div>
+                `;
+
+                let inputsHtml = `
+                    <div class="table-container" style="margin-bottom: 15px; overflow:visible;">
+                        <table class="input-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 25%;">البيان</th>
+                                    <th style="width: 15%;">الكمية</th>
+                                    <th style="width: 6%;">العملية</th>
+                                    <th style="width: 12%;">السعر</th>
+                                    <th style="width: 14%;">الإجمالي</th>
+                                    <th style="width: 14%;">التسديد</th>
+                                    <th style="width: 14%;">حفظ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><input type="text" id="p_name" class="glass-input" autocomplete="off" style="width:100%; text-align:right;" placeholder="اكتب هنا..." onkeydown="if(event.key === 'Enter') addPurchaseRecord()"></td>
+                                    <td><input type="number" id="p_qty" class="glass-input" autocomplete="off" style="width:100%; text-align:center;" placeholder="0" oninput="updateLiveTotal()" onkeydown="if(event.key === 'Enter') addPurchaseRecord()"></td>
+                                    <td>
+                                        <div style="display:flex; flex-direction:column; align-items:center; background:rgba(0,0,0,0.3); padding:4px; border-radius:4px; border:1px solid var(--border);">
+                                            <label style="cursor:pointer; margin-bottom:2px;"><input type="radio" name="p_op" value="*" checked onchange="updateLiveTotal()"> ✖</label>
+                                            <label style="cursor:pointer;"><input type="radio" name="p_op" value="/" onchange="updateLiveTotal()"> ➗</label>
+                                        </div>
+                                    </td>
+                                    <td><input type="number" id="p_price" class="glass-input" autocomplete="off" style="width:100%; text-align:center;" placeholder="0" oninput="updateLiveTotal()" onkeydown="if(event.key === 'Enter') addPurchaseRecord()"></td>
+                                    <td><div id="live_total_disp" style="font-size:16px; font-weight:900; color:var(--primary);">0</div></td>
+                                    <td><input type="number" id="p_paid" class="glass-input" autocomplete="off" style="width:100%; text-align:center;" placeholder="0" onkeydown="if(event.key === 'Enter') addPurchaseRecord()"></td>
+                                    <td><button class="btn-g btn-add" style="width:100%; height:35px; font-size:14px;" onclick="addPurchaseRecord()">➕ إضافة</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                let vodafoneRecords = records.filter(item => item.name.includes('فودافون') && !item.parent_id);
+                let vTableHtml = '';
+                if (vodafoneRecords.length > 0) {
+                    let vRows = vodafoneRecords.map((item, index) => {
+                        let c1 = item.v_c1 || '';
+                        let c2 = item.v_c2 || '';
+                        let c3 = item.v_c3 || '';
+                        let c4 = item.v_c4 || '';
+                        let consumed = (item.v_c1||0) + (item.v_c2||0) + (item.v_c3||0) + (item.v_c4||0);
+                        let currentDeficit = getVodafoneDeficit(activeMerchant, item.id);
+                        let net = item.qty - consumed + currentDeficit;
+
+                        return `
+                        <tr>
+                            <td class="serial-cell" style="font-size:18px !important;">ت ${index + 1}</td>
+                            <td style="font-size:16px;"><b>${item.name}</b></td>
+                            <td style="color:var(--primary); font-weight:900; font-size:18px;">${item.qty}</td>
+                            <td><input type="number" id="v1_${item.id}" autocomplete="off" class="glass-input vodafone-consume-input" value="${c1}" oninput="updateVodafone(${item.id}, 1, this.value)"></td>
+                            <td><input type="number" id="v2_${item.id}" autocomplete="off" class="glass-input vodafone-consume-input" value="${c2}" oninput="updateVodafone(${item.id}, 2, this.value)"></td>
+                            <td><input type="number" id="v3_${item.id}" autocomplete="off" class="glass-input vodafone-consume-input" value="${c3}" oninput="updateVodafone(${item.id}, 3, this.value)"></td>
+                            <td><input type="number" id="v4_${item.id}" autocomplete="off" class="glass-input vodafone-consume-input" value="${c4}" oninput="updateVodafone(${item.id}, 4, this.value)"></td>
+                            <td style="color:var(--danger); font-weight:900; font-size:18px;">${consumed}</td>
+                            <td style="color:var(--success); font-weight:900; font-size:18px;">${net}</td>
+                        </tr>
+                        `;
+                    }).join('');
+
+                    vTableHtml = `
+                        <h3 style="color:var(--purple); margin-top:20px; margin-bottom:10px; padding-bottom:5px; border-bottom:2px dashed var(--purple);">📊 إدخال الاستهلاكيات (تجمع أوتوماتيكياً)</h3>
+                        <div class="table-container" style="width:100%; margin-bottom:25px; border:2px solid var(--purple); box-shadow: 0 0 15px rgba(213,0,249,0.3);">
+                            <table>
+                                <thead style="background:rgba(213,0,249,0.15);">
+                                    <tr>
+                                        <th class="serial-cell">ت</th>
+                                        <th style="font-size:14px;">البيان</th>
+                                        <th style="font-size:14px;">الكمية (مصري)</th>
+                                        <th style="font-size:14px;">استهلاك 1️⃣</th>
+                                        <th style="font-size:14px;">استهلاك 2️⃣</th>
+                                        <th style="font-size:14px;">استهلاك 3️⃣</th>
+                                        <th style="font-size:14px;">استهلاك 4️⃣</th>
+                                        <th style="font-size:14px;">إجمالي الاستهلاك</th>
+                                        <th style="font-size:14px;">الباقي (مصري)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${vRows}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                let tableRows = records.map((item, index) => {
+                    let isDeficit = item.parent_id ? 'background: rgba(255, 23, 68, 0.05);' : '';
+                    let priceDisplay = item.parent_id 
+                        ? `<input type="number" class="glass-input" autocomplete="off" style="width:70px; text-align:center; height:26px; font-size:14px; padding:0; font-weight:900; color:var(--warning);" value="${item.price}" onchange="updateDeficitPrice(${item.id}, this.value)">` 
+                        : item.price;
+
+                    return `
+                    <tr style="${isDeficit}">
+                        <td class="serial-cell">ت ${index + 1}</td>
+                        <td><b>${item.name}</b></td>
+                        <td style="color:var(--primary); font-weight:900;">${item.qty}</td>
+                        <td style="color:var(--warning); font-weight:900;">${priceDisplay}</td>
+                        <td style="color:var(--text-main); font-weight:900; font-size:14px;">${item.total}</td>
+                        <td style="color:var(--success); font-weight:900; font-size:14px;">${item.paid}</td>
+                        <td style="color:var(--danger); font-weight:900; font-size:14px;">${item.remaining}</td>
+                        <td><button class="btn-mini b-full" onclick="deletePurchaseRecord(${item.id})">❌ حذف</button></td>
+                    </tr>
+                    `;
+                }).join('');
+
+                let tableHeader = `<thead><tr><th class="serial-cell">ت</th><th>البيان</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>التسديد</th><th>الباقي النهائي</th><th>إجراء</th></tr></thead>`;
+                
+                container.innerHTML = merchantTabs + summaryHtml + inputsHtml + vTableHtml + `<h3 style="color:var(--text-muted); margin-bottom:10px;">📜 التسلسل العام للمشتريات</h3><div class="table-container" style="width:100%;"><table>${tableHeader}<tbody>${tableRows || '<tr><td colspan="8" style="text-align:center; padding:30px;">لا توجد عمليات مشتريات مسجلة لهذا التاجر.</td></tr>'}</tbody></table></div>`;
+            }
+
+            else if (currentTabNum === 8) {
+                if(!sysDB.fatima_days || !sysDB.fatima_days.length) {
+                    let today = new Date().toLocaleDateString("ar-EG", {year:"numeric", month:"long", day:"numeric"});
+                    sysDB.fatima_days = [{
+                        id: 1, label: "اليوم الأول — " + today, created_at: Date.now(), carried_forward: false,
+                        prev_val: sysDB.fatima?.prev_val || "", total_work: sysDB.fatima?.total_work || "",
+                        received_val: sysDB.fatima?.received_val || "", final_rem: sysDB.fatima?.final_rem || "",
+                        rows: sysDB.fatima?.rows || Array.from({length:25}, () => ({val:"",comm:"",tot:""}))
+                    }];
+                    sysDB.fatima_active_day = 0;
+                    saveDB();
+                }
+                if(sysDB.fatima_active_day === undefined) sysDB.fatima_active_day = 0;
+                let fatima = sysDB.fatima_days[sysDB.fatima_active_day];
+                sysDB.fatima = fatima;
+
+                let dayTabsHtml = sysDB.fatima_days.map((d, i) => {
+                    let isActive = i === sysDB.fatima_active_day;
+                    let rem = parseFloat(d.final_rem) || 0;
+                    let badge = d.carried_forward ? `<span style="background:#059669;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;margin-left:4px;">↩${Math.floor(parseFloat(d.prev_val)||0)}</span>` : "";
+                    return `<button onclick="switchFatimaDay(${i})" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;background:${isActive?"#6d28d9":"rgba(109,40,217,0.1)"};color:${isActive?"#fff":"#8b5cf6"};border:1px solid ${isActive?"#6d28d9":"rgba(109,40,217,0.25)"};white-space:nowrap;flex-shrink:0;">${badge}${d.label}${rem!==0&&!isActive?`<span style="color:#fbbf24;font-size:9px;"> (${Math.floor(rem)})</span>`:""}</button>`;
+                }).join("");
+
+                let rowsHtml = fatima.rows.map((r, i) => `
+                    <tr style="height:30px;">
+                        <td style="width:26px;text-align:center;font-size:11px;font-weight:700;padding:2px;color:#78350f;">${i+1}</td>
+                        <td style="padding:2px 4px;"><input type="number" id="f_v_${i}" class="glass-input" autocomplete="off" style="width:100%;text-align:center;font-size:13px;height:26px;padding:0 4px;color:#78350f;font-weight:700;" value="${r.val}" onchange="recalcFatimaLive(${i})"></td>
+                        <td style="padding:2px 4px;"><input type="number" id="f_c_${i}" class="glass-input" autocomplete="off" style="width:100%;text-align:center;font-size:13px;height:26px;padding:0 4px;color:#78350f;font-weight:700;" value="${r.comm}" onchange="recalcFatimaLive(${i})"></td>
+                        <td style="padding:2px 4px;"><input type="number" id="f_t_${i}" class="glass-input" readonly style="width:100%;text-align:center;font-size:13px;height:26px;font-weight:900;color:#92400e;background:rgba(146,64,14,0.08);border:1px solid rgba(146,64,14,0.15);padding:0 4px;" value="${r.tot}"></td>
+                    </tr>
+                `).join("");
+
+                let FATIMA_H = "calc(100vh - 230px)";
+                container.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(109,40,217,0.07);border:1px solid rgba(109,40,217,0.2);border-radius:8px;padding:10px 16px;margin-bottom:8px;">
+                        <div style="font-size:17px;font-weight:900;color:var(--text-main);">👩‍💼 قسم فاطمة</div>
+                        <button onclick="createNewFatimaDay()" style="background:#6d28d9;color:#fff;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;">➕ يوم جديد</button>
+                    </div>
+                    <div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;align-items:center;flex-wrap:nowrap;">
+                        <span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">📅</span>
+                        ${dayTabsHtml}
+                    </div>
+                    ${fatima.carried_forward ? `<div style="background:rgba(5,150,105,0.08);border:1px solid rgba(5,150,105,0.3);border-radius:6px;padding:6px 14px;margin-bottom:8px;font-size:12px;font-weight:900;color:#059669;">↩️ تم ترحيل الباقي (<b>${Math.floor(parseFloat(fatima.prev_val)||0)}</b>) تلقائياً</div>` : ""}
+                    <div style="display:flex;gap:14px;align-items:stretch;height:${FATIMA_H};">
+                        <div style="flex:0 0 300px;display:flex;flex-direction:column;border:1px solid rgba(146,64,14,0.2);border-radius:8px;overflow:hidden;">
+                            <div style="background:rgba(146,64,14,0.08);padding:8px 12px;border-bottom:1px solid rgba(146,64,14,0.15);text-align:center;">
+                                <span style="font-size:13px;font-weight:900;color:#92400e;">📋 جدول العمليات</span>
+                            </div>
+                            <div style="overflow-y:auto;flex:1;">
+                                <table style="table-layout:fixed;width:100%;border-collapse:collapse;">
+                                    <colgroup><col style="width:26px;"><col><col><col></colgroup>
+                                    <thead>
+                                        <tr style="height:30px;background:rgba(146,64,14,0.06);position:sticky;top:0;z-index:1;">
+                                            <th style="text-align:center;font-size:11px;padding:3px;font-weight:900;color:#78350f;">ت</th>
+                                            <th style="text-align:center;font-size:11px;padding:3px;font-weight:900;color:#78350f;">القيمة</th>
+                                            <th style="text-align:center;font-size:11px;padding:3px;font-weight:900;color:#78350f;">العمولة</th>
+                                            <th style="text-align:center;font-size:11px;padding:3px;font-weight:900;color:#78350f;">الإجمالي</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>${rowsHtml}</tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div id="fatimaSummaryBox" style="flex:1;display:flex;flex-direction:column;border:1px solid rgba(109,40,217,0.25);border-radius:8px;overflow:hidden;">
+                            <div style="background:rgba(109,40,217,0.09);padding:12px;text-align:center;border-bottom:1px solid rgba(109,40,217,0.15);">
+                                <div style="font-size:14px;font-weight:900;color:#7c3aed;">📊 خلاصة — ${fatima.label}</div>
+                            </div>
+                            <div style="flex:1;display:flex;flex-direction:column;justify-content:space-evenly;padding:16px 20px;gap:12px;">
+                                <div style="display:flex;flex-direction:column;gap:5px;">
+                                    <label style="font-size:13px;font-weight:900;color:#78350f;">القيمة السابقة ${fatima.carried_forward?"<span style='font-size:10px;background:#059669;color:#fff;border-radius:3px;padding:1px 6px;'>↩ مرحّل</span>":""}</label>
+                                    <input type="number" id="f_prev" class="glass-input" autocomplete="off" style="width:100%;text-align:center;font-size:22px;font-weight:900;height:52px;padding:0 10px;color:#92400e;border:1px solid rgba(146,64,14,0.25);border-radius:6px;" value="${fatima.prev_val}" onchange="recalcFatimaSummaryLive()">
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:5px;">
+                                    <label style="font-size:13px;font-weight:900;color:#065f46;">القيمة المستلمة</label>
+                                    <input type="number" id="f_rec" class="glass-input" autocomplete="off" style="width:100%;text-align:center;font-size:22px;font-weight:900;height:52px;padding:0 10px;color:var(--success);border:1px solid rgba(52,211,153,0.3);border-radius:6px;" value="${fatima.received_val}" onchange="recalcFatimaSummaryLive()">
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:5px;">
+                                    <label style="font-size:13px;font-weight:900;color:#78350f;">إجمالي الشغل</label>
+                                    <input type="number" id="f_total_work" class="glass-input" readonly style="width:100%;text-align:center;font-size:22px;font-weight:900;height:52px;padding:0 10px;color:var(--warning);background:rgba(0,0,0,0.12);border:1px solid rgba(251,191,36,0.2);border-radius:6px;" value="${fatima.total_work}">
+                                </div>
+                                <div style="display:flex;flex-direction:column;gap:5px;">
+                                    <label style="font-size:13px;font-weight:900;color:#991b1b;">الباقي النهائي</label>
+                                    <input type="number" id="f_rem" class="glass-input" readonly style="width:100%;text-align:center;font-size:26px;font-weight:900;height:60px;padding:0 10px;color:var(--danger);background:rgba(0,0,0,0.12);border:1px solid rgba(248,113,113,0.25);border-radius:8px;" value="${fatima.final_rem}">
+                                </div>
+                            </div>
+                            <div style="padding:12px 16px;border-top:1px solid rgba(109,40,217,0.12);background:rgba(0,0,0,0.08);">
+                                <button onclick="downloadFatimaImage()" style="width:100%;background:#6d28d9;color:#fff;border:none;border-radius:6px;padding:9px;font-size:13px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;">🖼️ تنزيل كصورة</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            else { 
+                container.innerHTML = `
+                <div class="smart-toolbar" style="justify-content:center;">
+                    <div class="toolbar-group">
+                        <span style="font-weight:900; color:var(--primary); font-size:14px; margin-right:15px;">القسم تحت الإنشاء - جاري برمجته</span>
+                    </div>
+                </div>
+                <div class="glass-panel-unified" style="justify-content:center; padding:40px; margin-top:10px;"><h2 style="color:var(--text-muted); font-size:18px;">مساحة القسم جاهزة للتصميم والتطوير.</h2></div>`;
+            }
+
+            if (activeFocus && document.getElementById(activeFocus)) { let el = document.getElementById(activeFocus); el.focus(); let val = el.value; el.value = ''; el.value = val; }
+        }
+
+        function checkAndAddNewDebt(dbKey) {
+            const name = document.getElementById('addNameInput').value.trim(); 
+            const amt = Math.floor(parseFloat(document.getElementById('addAmountInput').value));
+            if (!name || isNaN(amt) || amt <= 0) { showToast("برجاء إدخال اسم وقيمة ماليّة صحيحة", "error"); return; }
+            let arr = getDbArr(dbKey);
+            
+            if(arr.some(item => item.name === name)) { 
+                showToast(`⚠️ الاسم [${name}] مسجل مسبقاً! يمنع التكرار، عدل على الحساب الموجود.`, "error"); 
+                return; 
+            }
+
+            let dueDateInput = document.getElementById('addDueDateInput');
+            let dueDate = dueDateInput && dueDateInput.value ? new Date(dueDateInput.value).getTime() : null;
+            
+            let sectionNames2 = { customers: 'ديون العملاء', companies: 'حسابات الشركات', wholesale: 'كبار العملاء' };
+            arr.push({ id: Date.now(), name: name, amount: amt, lastPaymentDate: Date.now(), dueDate: dueDate });
+            logAction(`إضافة حساب جديد [${name}] بقيمة ${amt} د.ل`, sectionNames2[dbKey] || dbKey);
+            saveDB(); renderActiveSection();
+        }
+
+        function addNewTrust() { 
+            const name = document.getElementById('trustName').value.trim(); 
+            const lyd = Math.floor(parseFloat(document.getElementById('trustLyd').value) || 0); 
+            const egp = Math.floor(parseFloat(document.getElementById('trustEgp').value) || 0); 
+            if (!name || (lyd <= 0 && egp <= 0)) return; 
+            
+            if(sysDB.trusts.some(item => item.name === name)) { 
+                showToast(`⚠️ صاحب الأمانة [${name}] مسجل مسبقاً! يرجى التعديل من الجدول.`, "error"); 
+                return; 
+            }
+            
+            sysDB.trusts.push({ id: Date.now(), name: name, lyd: lyd, egp: egp }); 
+            logAction(`تسجيل أمانة لـ [${name}].`); saveDB(); renderActiveSection(); 
+        }
+
+        const SNAPSHOT_KEYS = ['snap_0','snap_1','snap_2','snap_3','snap_4','snap_5'];
+        const SNAP_INTERVAL_MS = 10 * 60 * 1000;
+        const AUTO_DOWNLOAD_MS = 60 * 60 * 1000;
+        let snapIndex = 0;
+
+        function setSaveStatus(state, text) {
+            let dot = document.getElementById('saveDot');
+            let txt = document.getElementById('saveStatusText');
+            if(!dot || !txt) return;
+            dot.className = 'save-dot' + (state==='saving'?' saving':state==='error'?' error':'');
+            txt.innerText = text;
+        }
+
+        function updateLastSaveText() {
+            let el = document.getElementById('lastSaveText');
+            if(!el) return;
+            let now = new Date();
+            el.innerText = `آخر حفظ: ${now.toLocaleTimeString('ar-EG', {hour:'2-digit',minute:'2-digit',second:'2-digit'})}`;
+        }
+
+        function takeSnapshot() {
+            try {
+                let snapshot = { ts: Date.now(), label: new Date().toLocaleString('ar-EG'), data: JSON.stringify(sysDB) };
+                localStorage.setItem('abdo_snap_' + (snapIndex % SNAPSHOT_KEYS.length), JSON.stringify(snapshot));
+                snapIndex++;
+                localStorage.setItem('abdo_snap_index', snapIndex);
+                setSaveStatus('ok', '✅ نسخة تلقائية محفوظة');
+                updateLastSaveText();
+                setTimeout(() => setSaveStatus('ok', 'جاهز'), 2500);
+            } catch(e) { setSaveStatus('error', '⚠️ فشل النسخ التلقائي!'); }
+        }
+
+        function autoDownloadBackup() {
+            try {
+                let blob = new Blob([JSON.stringify(sysDB)], {type:'application/json'});
+                let url = URL.createObjectURL(blob);
+                let a = document.createElement('a');
+                let now = new Date();
+                let ds = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}`;
+                a.href = url; a.download = `نسخة_تلقائية_${ds}.json`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('💾 تم تنزيل نسخة احتياطية تلقائية!', 'success');
+                logAction('تنزيل نسخة احتياطية تلقائية كل ساعة.');
+            } catch(e) { showToast('⚠️ تعذر التنزيل التلقائي', 'error'); }
+        }
+
+        function manualBackupNow() {
+            setSaveStatus('saving', '⏳ جاري الحفظ...');
+            setTimeout(() => { takeSnapshot(); createBackup(); }, 200);
+        }
+
+        function openRecoveryModal() {
+            document.getElementById('recoveryModal').style.display = 'flex';
+            let list = document.getElementById('recoverySlotsList');
+            let snaps = [];
+            for(let i=0; i<SNAPSHOT_KEYS.length; i++) {
+                try { let r = localStorage.getItem('abdo_snap_'+i); if(r) snaps.push({key:'abdo_snap_'+i, ...JSON.parse(r)}); } catch(e) {}
+            }
+            snaps.sort((a,b) => b.ts - a.ts);
+            if(!snaps.length) { list.innerHTML = `<p style="text-align:center;color:#64748b;padding:20px;">لا توجد نسخ تلقائية بعد (تُؤخذ كل 10 دقائق).</p>`; return; }
+            list.innerHTML = snaps.map(snap => {
+                let age = Math.round((Date.now()-snap.ts)/60000);
+                let ageStr = age < 60 ? `منذ ${age} دقيقة` : `منذ ${Math.round(age/60)} ساعة`;
+                let size = Math.round(snap.data.length/1024);
+                return `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                    <div><div style="font-weight:900;font-size:13px;color:#0f172a;">🕐 ${snap.label}</div>
+                    <div style="font-size:11px;color:#64748b;">${ageStr} • ${size} KB</div></div>
+                    <button class="btn-g" style="background:#10b981;color:#000;font-size:11px;height:30px;" onclick="restoreSnapshot('${snap.key}')">↩️ استعادة</button>
+                </div>`;
+            }).join('');
+        }
+
+        function restoreSnapshot(key) {
+            if(!confirm('⚠️ سيتم استبدال البيانات الحالية. متأكد؟')) return;
+            try {
+                let snap = JSON.parse(localStorage.getItem(key));
+                let data = JSON.parse(snap.data);
+                if(!data || typeof data !== 'object') throw new Error('بيانات غير صالحة');
+                sysDB = data;
+                if(!sysDB.trash_bin) sysDB.trash_bin = [];
+                if(!sysDB.audit_log) sysDB.audit_log = [];
+                saveDB();
+                logAction(`استعادة snapshot بتاريخ: ${snap.label}`);
+                document.getElementById('recoveryModal').style.display = 'none';
+                renderActiveSection();
+                showToast('✅ تم استعادة النسخة بنجاح!', 'success');
+            } catch(e) { showToast('❌ فشل في قراءة النسخة!', 'error'); }
+        }
+
+        function startAutoSaveSystem() {
+            snapIndex = parseInt(localStorage.getItem('abdo_snap_index') || '0');
+            setInterval(takeSnapshot, SNAP_INTERVAL_MS);
+            setInterval(() => { if(sessionStorage.getItem('abdo_logged_in')==='1') autoDownloadBackup(); }, AUTO_DOWNLOAD_MS);
+            updateLastSaveText();
+        }
+
+        window.saveDB = async function() {
+            if(window._saveDBBusy) return;
+            window._saveDBBusy = true;
+            try { if(typeof setSaveStatus === 'function') setSaveStatus('saving', '⏳ حفظ...'); } catch(e) {}
+            try {
+                localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
+                await fetch('/api/save_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sysDB)
+                });
+            } catch(e) { console.error("خطأ في السيرفر:", e); }
+            try { if(typeof updateDataLists === 'function') updateDataLists(); } catch(e) {}
+            try { if(typeof updateLastSaveText === 'function') updateLastSaveText(); } catch(e) {}
+            setTimeout(() => {
+                window._saveDBBusy = false;
+                try { if(typeof setSaveStatus === 'function') setSaveStatus('ok', 'جاهز'); } catch(e) {}
+            }, 300);
+        };
+
+        let originalOnload = window.onload;
+        window.onload = async function() {
+            try {
+                let response = await fetch('/api/load_data');
+                let result = await response.json();
+                if (result.status === 'success' && result.data) { 
+                    sysDB = result.data; 
+                }
+            } catch(e) { console.log("العمل محلياً..."); }
+            
+            if(typeof originalOnload === 'function') {
+                originalOnload();
+            }
+        };
+
+    </script>
+</body>
+</html>
