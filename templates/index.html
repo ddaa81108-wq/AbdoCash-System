@@ -529,20 +529,6 @@
 </head>
 <body>
 
-    <div id="startup-loader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0f1a; z-index: 9999999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease;">
-        <div style="width: 50px; height: 50px; border: 4px solid rgba(56, 189, 248, 0.2); border-top: 4px solid #38bdf8; border-radius: 50%; animation: spinLoader 1s linear infinite; margin-bottom: 15px;"></div>
-        <div style="color: #38bdf8; font-weight: 900; font-size: 16px; letter-spacing: 1px;">جاري تهيئة المنظومة...</div>
-        <style>@keyframes spinLoader { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
-        <script>
-            window.addEventListener('load', function() {
-                setTimeout(function() {
-                    let loader = document.getElementById('startup-loader');
-                    loader.style.opacity = '0';
-                    setTimeout(() => loader.style.display = 'none', 500);
-                }, 300);
-            });
-        </script>
-    </div>
     <datalist id="savedNames"></datalist>
     <div id="toast-container"></div>
 
