@@ -1030,16 +1030,18 @@ function tryLogin() {
                 document.getElementById('autoSaveBar').style.display = 'flex';
 
                 // ===== كابل السحب السحابي من قاعدة البيانات =====
-                fetch('/get_data') // سحب البيانات من السيرفر
+              // ===== كابل السحب السحابي من قاعدة البيانات =====
+                fetch('/api/load_data') // ربطنا الكابل بالاسم الصحيح في السيرفر بتاعك
                     .then(response => {
                         if(response.ok) return response.json();
                         throw new Error('جاري العمل على الذاكرة المحلية مؤقتاً');
                     })
                     .then(serverData => {
-                        if(serverData && Object.keys(serverData).length > 0) {
+                        // السيرفر بتاعك بيبعت البيانات جوه صندوق اسمه "data"
+                        if(serverData && serverData.status === "success" && serverData.data) {
                             console.log("تم سحب البيانات من السحابة بنجاح!");
-                            // وضع البيانات القادمة من السيرفر في الذاكرة لتشغيلها
-                            localStorage.setItem('abdo_data', JSON.stringify(serverData)); 
+                            // بناخد البيانات الصافية من الصندوق ونفرشها في المنظومة
+                            localStorage.setItem('abdo_data', JSON.stringify(serverData.data)); 
                         }
                         finalizeLoginSteps(user);
                     })
@@ -1047,7 +1049,6 @@ function tryLogin() {
                         console.log(error.message);
                         finalizeLoginSteps(user); // تشغيل المنظومة أوتوماتيك حتى لو مفيش اتصال
                     });
-
             } else {
                 if (err) { err.style.display = 'block'; err.innerText = '❌ كلمة المرور غير صحيحة!'; }
                 document.getElementById('loginPassInput').value = '';
