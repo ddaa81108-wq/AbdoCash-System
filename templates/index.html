@@ -3975,10 +3975,9 @@ function tryLogin() {
         function renderActiveSection() {
             autoCloseDay(); let activeFocus = document.activeElement.id;
             const container = document.getElementById('dynamicSectionContent');
-
-            if ([1, 2, 3].includes(currentTabNum)) {
-                let dbKey = currentTabNum === 1 ? 'customers' : currentTabNum === 2 ? 'companies' : 'wholesale';
-                let activePageData = currentTabNum === 1 ? sysDB.customer_pages[activeCustomerPageIndex] : currentTabNum === 2 ? sysDB.company_pages[activeCompanyPageIndex] : sysDB.wholesale_pages[activeWholesalePageIndex];
+if (currentTabNum === 1) {
+                let dbKey = 'customers';
+                let activePageData = sysDB.customer_pages[activeCustomerPageIndex];
                 let searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
                 let targetDebts = activePageData.debts;
                 let totalDebts = targetDebts.reduce((sum, item) => sum + Math.floor(item.amount), 0);
@@ -4018,17 +4017,10 @@ function tryLogin() {
                         </div>
                     </div>`;
 
-                if(currentTabNum === 2) {
-                    let tableRows = filteredList.map((item, index) => {
-                        let amtStyle = 'color:var(--warning);';
-                        let amtEndStyle = 'color:var(--danger);';
-                        return `<tr><td class="serial-cell" style="width:30px;">${index + 1}</td><td><b>${item.name}</b></td><td style="${amtStyle}">${Math.floor(item.amount)}</td><td style="min-width:140px;">${generateActionsHtml(dbKey, item)}</td><td style="${amtEndStyle}">${Math.floor(item.amount)}</td></tr>`;
-                    }).join('');
-                    let compHeader = `<thead><tr><th class="serial-cell">ت</th><th>اسم الشركة</th><th>الديون</th><th>التسديد</th><th>الباقي</th></tr></thead>`;
-                    container.innerHTML = `${toolbarHtml}<div class="table-container" style="width:100%;"><table>${compHeader}<tbody>${tableRows || '<tr><td colspan="5" style="text-align:center; padding:20px;">الجدول فارغ.</td></tr>'}</tbody></table></div>`;
-                } else {
-                    container.innerHTML = `${toolbarHtml}<div class="split-layout"><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div></div>`;
-                }
+                container.innerHTML = `${toolbarHtml}<div class="split-layout"><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div></div>`;
+            }
+            else if (currentTabNum === 2 || currentTabNum === 3) {
+                container.innerHTML = `<div class="glass-panel-unified" style="justify-content:center; padding:40px; margin-top:10px;"><h2 style="color:var(--text-muted); font-size:18px;">مساحة القسم جاهزة للتصميم والتطوير (تم تفريغ الجداول القديمة بنجاح).</h2></div>`;
             }
             else if (currentTabNum === 4) {
                 let searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
