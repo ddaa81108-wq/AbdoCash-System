@@ -7,7 +7,7 @@
     <!-- مكتبة تحويل الجداول إلى صور -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <style>
+  <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
 
         :root {
@@ -100,6 +100,15 @@
         .btn-trash:hover { background: #991b1b; }
         .btn-logout { background: #ef4444; color: #fff; border: 1px solid #dc2626; margin-top: 15px; }
         .btn-notif { background: #1e3a5f; color: #93c5fd; border: 1px solid #2563eb; }
+
+        /* ====== التصميم العصري لزراير الجداول (تمت إضافته بقوة) ====== */
+        .btn-mini { padding: 6px 12px !important; border: none !important; border-radius: 6px !important; font-weight: 900 !important; cursor: pointer !important; font-size: 11px !important; color: #fff !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; margin: 2px !important; transition: all 0.3s ease !important; box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important; }
+        .btn-mini:hover { transform: translateY(-2px) !important; box-shadow: 0 4px 8px rgba(0,0,0,0.3) !important; }
+        .b-part { background: linear-gradient(135deg, #f59e0b, #d97706) !important; color: #fff !important; } 
+        .b-full { background: linear-gradient(135deg, #ef4444, #dc2626) !important; color: #fff !important; font-size: 11px !important; } 
+        .b-add-more { background: linear-gradient(135deg, #10b981, #059669) !important; color: #fff !important; } 
+        .b-calc { background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important; padding: 6px 10px !important; color: #fff !important; } 
+        .b-conv { background: linear-gradient(135deg, #3b82f6, #2563eb) !important; color: #fff !important; }
 
         /* ===== شاشة الدخول ===== */
         #loginScreen {
