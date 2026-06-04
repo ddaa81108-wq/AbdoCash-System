@@ -1008,15 +1008,13 @@
             document.getElementById('loginStep1').classList.remove('hidden');
             document.getElementById('loginPassInput').value = '';
         }
-
-        function tryLogin() {
+function tryLogin() {
             if (!loginSelectedUserId) { backToUserSelect(); return; }
             let db = initAuthDB();
             let user = db.users.find(u => u.id === loginSelectedUserId);
             let err = document.getElementById('loginError');
             let input = document.getElementById('loginPassInput').value;
 
-            // توافق مع الكود القديم: المدير يقبل كلمة المرور القديمة
             let validPass = (input === user.password) ||
                 (user.role === 'admin' && input === (localStorage.getItem('abdo_sys_pass') || '1234'));
 
@@ -1027,16 +1025,29 @@
                 document.getElementById('loginPassInput').value = '';
                 if (err) err.style.display = 'none';
 
-                // تحديث الواجهة
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboardSection').style.display = 'flex';
                 document.getElementById('autoSaveBar').style.display = 'flex';
 
-                renderSidebar();
-                updateUserChip();
-                logAction(`تسجيل دخول: ${user.name} (${ROLE_LABELS[user.role]?.label || user.role})`, 'النظام');
-                checkDebtNotifications();
-                renderActiveSection();
+                // ===== كابل السحب السحابي من قاعدة البيانات =====
+                fetch('/get_data') // سحب البيانات من السيرفر
+                    .then(response => {
+                        if(response.ok) return response.json();
+                        throw new Error('جاري العمل على الذاكرة المحلية مؤقتاً');
+                    })
+                    .then(serverData => {
+                        if(serverData && Object.keys(serverData).length > 0) {
+                            console.log("تم سحب البيانات من السحابة بنجاح!");
+                            // وضع البيانات القادمة من السيرفر في الذاكرة لتشغيلها
+                            localStorage.setItem('abdo_data', JSON.stringify(serverData)); 
+                        }
+                        finalizeLoginSteps(user);
+                    })
+                    .catch(error => {
+                        console.log(error.message);
+                        finalizeLoginSteps(user); // تشغيل المنظومة أوتوماتيك حتى لو مفيش اتصال
+                    });
+
             } else {
                 if (err) { err.style.display = 'block'; err.innerText = '❌ كلمة المرور غير صحيحة!'; }
                 document.getElementById('loginPassInput').value = '';
@@ -1045,6 +1056,16 @@
                 logAction(`محاولة دخول فاشلة للحساب: ${user.name}`, 'النظام');
             }
         }
+
+        // دالة مساعدة لتشغيل وعرض الجداول بعد تسجيل الدخول
+        function finalizeLoginSteps(user) {
+            renderSidebar();
+            updateUserChip();
+            logAction(`تسجيل دخول: ${user.name} (${ROLE_LABELS[user.role]?.label || user.role})`, 'النظام');
+            if (typeof checkDebtNotifications === 'function') checkDebtNotifications();
+            renderActiveSection();
+        }
+    
 
         function logout() {
             if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
