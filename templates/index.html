@@ -4,25 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>المنظومة المالية المركزية | عبده</title>
+    <!-- مكتبة تحويل الجداول إلى صور -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    /* ====== الضربة القاضية لتأثير الثلج ====== */
-        :root {
-            --table-hover: transparent !important;
-        }
-        
-        table tbody tr:hover td, 
-        table tbody tr:hover th, 
-        tr:hover td, 
-        tr:hover th {
-            background-color: inherit !important;
-            background: inherit !important;
-            backdrop-filter: none !important;
-            -webkit-backdrop-filter: none !important;
-            box-shadow: none !important;
-            filter: none !important;
-        }
-        /* ========================================= */
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap');
 
@@ -39,7 +23,7 @@
             --text-main: #e2e8f0;
             --text-muted: #94a3b8;
             --border: rgba(56, 189, 248, 0.2);
-            --table-hover: rgba(56, 189, 248, 0.08);
+            --table-hover: transparent !important; /* تم القضاء على الثلج هنا */
             --glass-blur: blur(20px);
             --input-bg: rgba(0,0,0,0.4);
         }
@@ -57,7 +41,7 @@
             --text-main: #0f172a;
             --text-muted: #475569;
             --border: rgba(3, 105, 161, 0.2);
-            --table-hover: rgba(3, 105, 161, 0.06);
+            --table-hover: transparent !important; /* تم القضاء على الثلج هنا */
             --input-bg: rgba(255, 255, 255, 0.9);
         }
 
@@ -135,17 +119,17 @@
             overflow-x: visible !important;
         }
 
-        /* 2. إلغاء تأثير الثلج (تغيير اللون) عند تمرير الماوس */
-        tr:hover, tbody tr:hover, .table-hover tbody tr:hover {
+        /* 2. الإلغاء النهائي لتأثير الثلج */
+        table tbody tr:hover td, 
+        table tbody tr:hover th, 
+        tr:hover td, 
+        tr:hover th {
             background-color: transparent !important;
-            background: none !important;
-            box-shadow: none !important;
+            background: transparent !important;
             backdrop-filter: none !important;
-        }
-        
-        tr:hover td, tbody tr:hover td {
-            background-color: transparent !important;
-            background: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+            filter: none !important;
         }
 
         /* 3. توضيح وتحديد خطوط الجداول بقوة */
