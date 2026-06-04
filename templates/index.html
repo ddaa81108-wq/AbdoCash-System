@@ -4511,5 +4511,151 @@ function tryLogin() {
             box-shadow: none !important;
         }
     </style>
+    <!-- ================= بداية قسم كبار العملاء (ويمكن تكراره للشركات) ================= -->
+<div class="vip-section" style="background: #0f172a; padding: 20px; border-radius: 12px; border: 1px solid #1e293b; margin-top: 20px; color: #f8fafc; font-family: Arial, sans-serif;">
+    
+    <h2 style="color: #38bdf8; text-align: center; border-bottom: 2px solid #1e293b; padding-bottom: 10px; margin-bottom: 20px;">قسم كبار العملاء (الجملة)</h2>
+
+    <!-- إضافة عميل جديد -->
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <input type="text" id="vipName" placeholder="اسم العميل" style="flex: 2; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: white;">
+        <input type="number" id="vipOldDebt" placeholder="الدين القديم" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: white;">
+        <button onclick="addVipClient()" style="background: #0ea5e9; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold;">إضافة العميل</button>
+    </div>
+
+    <!-- الجدول الرئيسي -->
+    <table style="width: 100%; border-collapse: collapse; text-align: center; background: #1e293b; border-radius: 8px; overflow: hidden;">
+        <thead style="background: #0ea5e9; color: white;">
+            <tr>
+                <th style="padding: 12px;">اسم العميل</th>
+                <th style="padding: 12px;">الدين القديم</th>
+                <th style="padding: 12px;">الدين الجديد</th>
+                <th style="padding: 12px;">الإجمالي عليه</th>
+                <th style="padding: 12px;">إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="vipTableBody">
+            <!-- العملاء هينزلوا هنا -->
+        </tbody>
+    </table>
+
+</div>
+
+<!-- نافذة (Modal) لإضافة العمليات الحسابية -->
+<div id="operationModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: #0f172a; padding: 25px; border-radius: 12px; border: 1px solid #38bdf8; width: 350px; text-align: center;">
+        <h3 style="color: #38bdf8; margin-top: 0;" id="modalClientName">إضافة عملية</h3>
+        <input type="hidden" id="modalClientId">
+        
+        <input type="number" id="opAmount" placeholder="المبلغ" style="width: 90%; padding: 10px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: white;">
+        
+        <div style="display: flex; gap: 10px; margin-bottom: 10px; justify-content: center;">
+            <label><input type="radio" name="opType" value="multiply" checked> ضرب (×)</label>
+            <label><input type="radio" name="opType" value="divide"> قسمة (÷)</label>
+        </div>
+
+        <input type="number" id="opRate" placeholder="السعر" style="width: 90%; padding: 10px; margin-bottom: 15px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: white;">
+        
+        <div style="display: flex; gap: 10px;">
+            <button onclick="saveOperation()" style="flex: 1; background: #10b981; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;">حفظ وإضافة</button>
+            <button onclick="closeModal()" style="flex: 1; background: #ef4444; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- محرك الأكواد والمعادلات -->
+<script>
+    // قاعدة بيانات مؤقتة لكبار العملاء
+    let vipClients = [];
+
+    // إضافة عميل للجدول
+    function addVipClient() {
+        let name = document.getElementById('vipName').value;
+        let oldDebt = parseFloat(document.getElementById('vipOldDebt').value) || 0;
+        
+        if(name.trim() === '') { alert('اكتب اسم العميل أولاً'); return; }
+
+        let newClient = {
+            id: Date.now(),
+            name: name,
+            oldDebt: Math.round(oldDebt), // تقفيل الرقم صحيح
+            newDebt: 0,
+            operations: []
+        };
+
+        vipClients.push(newClient);
+        document.getElementById('vipName').value = '';
+        document.getElementById('vipOldDebt').value = '';
+        renderVipTable();
+    }
+
+    // فتح شاشة العمليات
+    function openOperationModal(clientId, clientName) {
+        document.getElementById('modalClientId').value = clientId;
+        document.getElementById('modalClientName').innerText = 'عملية لـ: ' + clientName;
+        document.getElementById('opAmount').value = '';
+        document.getElementById('opRate').value = '';
+        document.getElementById('operationModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('operationModal').style.display = 'none';
+    }
+
+    // حفظ العملية الحسابية وتسميعها في الإجمالي
+    function saveOperation() {
+        let id = document.getElementById('modalClientId').value;
+        let amount = parseFloat(document.getElementById('opAmount').value) || 0;
+        let rate = parseFloat(document.getElementById('opRate').value) || 0;
+        let type = document.querySelector('input[name="opType"]:checked').value;
+
+        if (amount === 0 || rate === 0) { alert('تأكد من إدخال المبلغ والسعر'); return; }
+
+        let result = 0;
+        if (type === 'multiply') {
+            result = amount * rate;
+        } else if (type === 'divide') {
+            result = amount / rate;
+        }
+
+        // تقفيل الناتج رقم صحيح بدون قروش
+        result = Math.round(result);
+
+        // تدوير على العميل عشان نضيفله الناتج
+        let client = vipClients.find(c => c.id == id);
+        if (client) {
+            client.operations.push({ amount, rate, type, result });
+            client.newDebt += result; // إضافة الناتج للدين الجديد
+        }
+
+        closeModal();
+        renderVipTable();
+    }
+
+    // رسم الجدول بالبيانات
+    function renderVipTable() {
+        let tbody = document.getElementById('vipTableBody');
+        tbody.innerHTML = '';
+
+        vipClients.forEach(client => {
+            let total = client.oldDebt + client.newDebt; // إجمالي اللي عليه
+            
+            let tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #334155';
+            
+            tr.innerHTML = `
+                <td style="padding: 12px; font-weight: bold; color: #38bdf8;">${client.name}</td>
+                <td style="padding: 12px;">${client.oldDebt}</td>
+                <td style="padding: 12px; color: #10b981;">${client.newDebt}</td>
+                <td style="padding: 12px; color: #f43f5e; font-weight: bold; font-size: 16px;">${total}</td>
+                <td style="padding: 12px;">
+                    <button onclick="openOperationModal(${client.id}, '${client.name}')" style="background: #3b82f6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;">+ إضافة عملية</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+</script>
+<!-- ================= نهاية قسم كبار العملاء ================= -->
 </body>
 </html>
