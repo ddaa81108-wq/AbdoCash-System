@@ -4255,3 +4255,40 @@ window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
     }
 });
 
+\n
+// ====== UI Split Logic ======
+function switchMainApp(appId, btnElement) {
+    document.querySelectorAll('.top-nav-tab').forEach(btn => btn.classList.remove('active'));
+    if(btnElement) {
+        btnElement.classList.add('active');
+    } else {
+        let defaultBtn = document.querySelector('.top-nav-tab[data-app="' + appId + '"]');
+        if(defaultBtn) defaultBtn.classList.add('active');
+    }
+    
+    const items = {
+        'clients': ['item_1', 'item_2', 'item_3'],
+        'treasury': ['item_4', 'item_5'],
+        'purchases': ['item_6', 'item_8']
+    };
+    
+    document.querySelectorAll('.menu-item').forEach(el => el.style.display = 'none');
+    
+    if(items[appId]) {
+        items[appId].forEach(id => {
+            let el = document.getElementById(id);
+            if(el) el.style.display = 'flex';
+        });
+        
+        let firstItemId = items[appId][0];
+        let firstItem = document.getElementById(firstItemId);
+        if(firstItem) firstItem.click();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Run after a short delay to ensure DOM and other scripts are ready
+    setTimeout(() => {
+        switchMainApp('clients');
+    }, 500);
+});
