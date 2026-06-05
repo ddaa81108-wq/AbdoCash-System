@@ -1,10 +1,18 @@
+import os
 from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 
 # الاتصال بقاعدة بيانات MongoDB
-client = MongoClient('mongodb+srv://abdo:654321asdfgh@cluster0.ubknokp.mongodb.net/?appName=Cluster0')
+mongo_uri = os.getenv('MONGO_URI')
+if not mongo_uri:
+    raise ValueError("No MONGO_URI found in environment variables")
+
+client = MongoClient(mongo_uri)
 db = client['AbdoFinancialDB']
 
 # تحديد المجموعات
