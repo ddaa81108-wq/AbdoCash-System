@@ -3976,48 +3976,200 @@ function tryLogin() {
             autoCloseDay(); let activeFocus = document.activeElement.id;
             const container = document.getElementById('dynamicSectionContent');
 if (currentTabNum === 1) {
-                let dbKey = 'customers';
-                let activePageData = sysDB.customer_pages[activeCustomerPageIndex];
+                // التأكد من تهيئة القسم 
+                if(typeof activeCustomerPageIndex === 'undefined' || activeCustomerPageIndex === null) {
+                    activeCustomerPageIndex = 0;
+                }
+                
+                if (!sysDB.customer_pages || sysDB.customer_pages.length === 0) {
+                    sysDB.customer_pages = [{ 
+                        id: 1, 
+                        label: 'اليوم الأول — ' + new Date().toLocaleDateString('ar-EG'), 
+                        created_at: Date.now(), 
+                        old_debt: 0,
+                        new_work: 0,
+                        collected: 0,
+                        debts: [] 
+                    }];
+                    activeCustomerPageIndex = 0;
+                    saveDB();
+                }
+
+                if(activeCustomerPageIndex >= sysDB.customer_pages.length) {
+                    activeCustomerPageIndex = sysDB.customer_pages.length - 1;
+                }
+
+                let activePage = sysDB.customer_pages[activeCustomerPageIndex];
+
+                // مترجم الذكاء: لو دي داتا قديمة، هنعتبر كل الديون الحالية هي باقي قديم
+                if (activePage.old_debt === undefined) {
+                    let currentTotal = activePage.debts.reduce((sum, item) => sum + Math.floor(item.amount), 0);
+                    activePage.old_debt = currentTotal;
+                    activePage.new_work = 0;
+                    activePage.collected = 0;
+                    saveDB();
+                }
+
+                let totalOld = activePage.old_debt || 0;
+                let totalNew = activePage.new_work || 0;
+                let totalCollected = activePage.collected || 0;
+                let totalRem = totalOld + totalNew - totalCollected;
+
+                // دالة الدفع السريع والمسح
+                window.payAndRemoveCustomerDebt = function(id) {
+                    let page = sysDB.customer_pages[activeCustomerPageIndex];
+                    let idx = page.debts.findIndex(d => d.id === id);
+                    if(idx !== -1) {
+                        let item = page.debts[idx];
+                        page.collected += Math.floor(item.amount);
+                        page.debts.splice(idx, 1);
+                        
+                        if(typeof addToTrashBin === 'function') {
+                            addToTrashBin(item, 'customers', 'ديون العملاء');
+                        }
+                        
+                        logAction(`تسديد ومسح حساب [${item.name}] بقيمة ${Math.floor(item.amount)} د.ل`, 'ديون العملاء');
+                        saveDB(); 
+                        renderActiveSection();
+                    }
+                };
+
+                // دالة إضافة زبون جديد سريع
+                window.addFastCustomerDebt = function() {
+                    let nameInput = document.getElementById('addNameInput');
+                    let amtInput = document.getElementById('addAmountInput');
+                    let name = nameInput.value.trim();
+                    let amt = Math.floor(parseFloat(amtInput.value));
+
+                    if (!name || isNaN(amt) || amt <= 0) { 
+                        showToast("برجاء إدخال اسم ومبلغ صحيح", "error"); 
+                        return; 
+                    }
+                    
+                    let page = sysDB.customer_pages[activeCustomerPageIndex];
+                    
+                    if(page.debts.some(item => item.name === name)) { 
+                        showToast(`⚠️ الاسم [${name}] مسجل مسبقاً!`, "error"); 
+                        return; 
+                    }
+
+                    page.debts.push({ id: Date.now(), name: name, amount: amt, lastPaymentDate: Date.now() });
+                    page.new_work += amt; 
+                    
+                    logAction(`إضافة حساب جديد [${name}] بقيمة ${amt} د.ل`, 'ديون العملاء');
+                    saveDB(); 
+                    renderActiveSection();
+                    
+                    setTimeout(() => {
+                        let ni = document.getElementById('addNameInput');
+                        if(ni) ni.focus();
+                    }, 100);
+                };
+
+                // دالة تقفيل اليوم
+                window.closeCustomerDay = function() {
+                    if(!confirm('هل أنت متأكد من إقفال اليوم وترحيل الباقي ليوم جديد؟')) return;
+                    
+                    let pages = sysDB.customer_pages;
+                    let currentDay = pages[activeCustomerPageIndex];
+                    let rem = (currentDay.old_debt || 0) + (currentDay.new_work || 0) - (currentDay.collected || 0);
+                    let newDebts = JSON.parse(JSON.stringify(currentDay.debts));
+                    
+                    let todayStr = new Date().toLocaleDateString('ar-EG');
+                    pages.push({ 
+                        id: Date.now(), 
+                        label: 'اليوم ' + (pages.length + 1) + ' — ' + todayStr, 
+                        created_at: Date.now(), 
+                        old_debt: rem, 
+                        new_work: 0, 
+                        collected: 0, 
+                        debts: newDebts 
+                    });
+
+                    activeCustomerPageIndex = pages.length - 1;
+                    logAction(`تم تقفيل اليوم وترحيل أرصدة العملاء بقيمة ${rem} د.ل`, 'ديون العملاء');
+                    saveDB(); 
+                    renderActiveSection();
+                    showToast('تم فتح يوم جديد وترحيل الأرصدة بنجاح!', 'success');
+                };
+
+                let dayTabsHtml = sysDB.customer_pages.map((p, i) => {
+                    let isActive = i === activeCustomerPageIndex;
+                    return `<button onclick="activeCustomerPageIndex=${i}; renderActiveSection()" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;background:${isActive?"var(--primary)":"transparent"};color:${isActive?"#000":"var(--primary)"};border:1px solid var(--primary);white-space:nowrap;flex-shrink:0;">${p.label || 'اليوم '+(i+1)}</button>`;
+                }).join("");
+
                 let searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
-                let targetDebts = activePageData.debts;
-                let totalDebts = targetDebts.reduce((sum, item) => sum + Math.floor(item.amount), 0);
-                let filteredList = targetDebts.filter(item => item.name.toLowerCase().includes(searchQuery));
+                let filteredList = activePage.debts.filter(item => item.name.toLowerCase().includes(searchQuery));
                 let third = Math.ceil(filteredList.length / 3);
 
                 let renderRows = (list, offset) => list.map((item, index) => {
-                    let amtStyle = 'color:var(--danger);';
-                    let dueBadge = '';
-                    if(item.dueDate) {
-                        let daysLeft = Math.floor((item.dueDate - Date.now()) / (1000*60*60*24));
-                        if(daysLeft < 0) dueBadge = `<br><span class="due-badge due-overdue">⏰ متأخر ${Math.abs(daysLeft)} يوم</span>`;
-                        else if(daysLeft <= 7) dueBadge = `<br><span class="due-badge due-warn">📅 باقي ${daysLeft} يوم</span>`;
-                        else dueBadge = `<br><span class="due-badge due-ok">📅 ${daysLeft} يوم</span>`;
-                    }
-                    let daysSince = getDaysSince(item.lastPaymentDate || item.id);
-                    let ageBadge = daysSince >= 60 ? `<span class="due-badge due-overdue" style="margin-right:3px;">🔴 ${daysSince}ي</span>` : daysSince >= 30 ? `<span class="due-badge due-warn" style="margin-right:3px;">🟡 ${daysSince}ي</span>` : '';
-                    return `<tr><td class="serial-cell">${offset + index + 1}</td><td><b>${item.name}</b>${dueBadge}</td><td style="${amtStyle}">${Math.floor(item.amount)}${ageBadge ? '<br>'+ageBadge : ''}</td><td style="min-width:140px;">${generateActionsHtml(dbKey, item)}</td></tr>`;
+                    return `<tr>
+                        <td class="serial-cell">${offset + index + 1}</td>
+                        <td><b style="font-size:14px;">${item.name}</b></td>
+                        <td style="color:var(--danger); font-weight:900; font-size:16px;">${Math.floor(item.amount)}</td>
+                        <td>
+                            <button class="btn-mini b-add-more" style="padding:8px 15px; font-size:12px; border-radius:6px; box-shadow:0 4px 6px rgba(0,0,0,0.3);" onclick="payAndRemoveCustomerDebt(${item.id})">✔ تسديد ومسح</button>
+                        </td>
+                    </tr>`;
                 }).join('');
 
-                let tableHeader = `<thead><tr><th class="serial-cell">ت</th><th>الاسم</th><th>الدين</th><th>العمليات</th></tr></thead>`;
+                let tableHeader = `<thead><tr><th class="serial-cell" style="width:40px;">ت</th><th>الاسم</th><th>المبلغ</th><th>إجراء</th></tr></thead>`;
 
-                let toolbarHtml = `
-                    <div class="smart-toolbar">
-                        <div class="toolbar-group">
-                            <div class="badge-total-top">الإجمالي: ${totalDebts}</div>
-                        </div>
-                        <div class="toolbar-group">
-                            <input type="text" id="addNameInput" list="savedNames" autocomplete="off" class="glass-input" placeholder="الاسم..." style="width:120px;" onkeydown="if(event.key === 'Enter') checkAndAddNewDebt('${dbKey}')">
-                            <input type="number" id="addAmountInput" autocomplete="off" class="glass-input" placeholder="الدين" style="width:70px;" onkeydown="if(event.key === 'Enter') checkAndAddNewDebt('${dbKey}')">
-                            <input type="date" id="addDueDateInput" class="glass-input" title="تاريخ الاستحقاق (اختياري)" style="width:140px;">
-                            <button class="btn-g b-calc" style="height:30px; padding:0 10px;" onclick="openCalcModal('addAmountInput')" title="حاسبة">🧮</button>
-                            <button class="btn-g btn-add" onclick="checkAndAddNewDebt('${dbKey}')">✔️ حفظ</button>
-                        </div>
-                        <div class="toolbar-group">
-                            <input type="text" id="searchInput" autocomplete="off" class="glass-input" placeholder="🔍 فلتر..." value="${searchQuery}" oninput="renderActiveSection()" style="width:120px;">
-                        </div>
-                    </div>`;
+                container.innerHTML = `
+                    <style>.b-calc, #calcModal { display: none !important; }</style>
 
-                container.innerHTML = `${toolbarHtml}<div class="split-layout"><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div></div>`;
+                    <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px 16px;margin-bottom:8px;">
+                        <div style="font-size:17px;font-weight:900;color:var(--text-main);">👥 ديون العملاء (الكاشير السريع)</div>
+                        <button onclick="closeCustomerDay()" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;box-shadow:0 4px 10px rgba(56,189,248,0.3);">🔄 تقفيل اليوم (ترحيل)</button>
+                    </div>
+                    
+                    <div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0 15px;align-items:center;flex-wrap:nowrap;">
+                        <span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">📅 الأرشيف:</span>
+                        ${dayTabsHtml}
+                    </div>
+
+                    <div style="display:flex; gap:15px; margin-bottom:20px; justify-content:center; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(15,23,42,0.8), rgba(30,41,59,0.8)); border:1px solid var(--text-muted); border-radius:12px; padding:15px; text-align:center; box-shadow:0 6px 15px rgba(0,0,0,0.2);">
+                            <div style="font-size:13px; color:var(--text-muted); font-weight:900; margin-bottom:8px;">💳 مُرحّل من إمبارح</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--text-main);">${totalOld}</div>
+                        </div>
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(245,158,11,0.1), rgba(217,119,6,0.1)); border:1px solid var(--warning); border-radius:12px; padding:15px; text-align:center; box-shadow:0 6px 15px rgba(245,158,11,0.15);">
+                            <div style="font-size:13px; color:var(--warning); font-weight:900; margin-bottom:8px;">↗️ شغل جديد (اليوم)</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--warning);">${totalNew}</div>
+                        </div>
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.1)); border:1px solid var(--success); border-radius:12px; padding:15px; text-align:center; box-shadow:0 6px 15px rgba(16,185,129,0.15);">
+                            <div style="font-size:13px; color:var(--success); font-weight:900; margin-bottom:8px;">↙️ كاش متحصلات (تسديد)</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--success);">${totalCollected}</div>
+                        </div>
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.1)); border:1px solid var(--danger); border-radius:12px; padding:15px; text-align:center; box-shadow:0 6px 15px rgba(239,68,68,0.15);">
+                            <div style="font-size:13px; color:var(--danger); font-weight:900; margin-bottom:8px;">م الباقي الفعلي (ديون مفتوحة)</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--danger);">${totalRem}</div>
+                        </div>
+                    </div>
+
+                    <div class="smart-toolbar" style="border:2px solid var(--primary); box-shadow: 0 4px 15px rgba(56,189,248,0.15); border-radius:10px;">
+                        <div class="toolbar-group">
+                            <input type="text" id="addNameInput" list="savedNames" autocomplete="off" class="glass-input" placeholder="اسم العميل..." style="width:180px; height:45px; font-size:16px;" onkeydown="if(event.key === 'Enter') addFastCustomerDebt()">
+                            <input type="number" id="addAmountInput" autocomplete="off" class="glass-input" placeholder="المبلغ" style="width:120px; height:45px; font-size:18px; text-align:center; font-weight:900;" onkeydown="if(event.key === 'Enter') addFastCustomerDebt()">
+                            <button class="btn-g btn-add" style="height:45px; font-size:16px; padding:0 25px; box-shadow:0 4px 10px rgba(0,230,118,0.3);" onclick="addFastCustomerDebt()">✔️ إضافة (إنتر)</button>
+                        </div>
+                        <div class="toolbar-group">
+                            <input type="text" id="searchInput" autocomplete="off" class="glass-input" placeholder="🔍 بحث سريع..." value="${searchQuery}" oninput="renderActiveSection()" style="width:150px; height:40px;">
+                        </div>
+                    </div>
+
+                    <div class="split-layout" style="margin-top:15px;">
+                        <div class="table-container" style="border:1px solid var(--primary);">
+                            <table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table>
+                        </div>
+                        <div class="table-container" style="border:1px solid var(--primary);">
+                            <table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table>
+                        </div>
+                        <div class="table-container" style="border:1px solid var(--primary);">
+                            <table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table>
+                        </div>
+                    </div>
+                `;
             }
           else if (currentTabNum === 2 || currentTabNum === 3) {
                 let dbKey = currentTabNum === 2 ? 'companies' : 'wholesale';
