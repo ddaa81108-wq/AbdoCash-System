@@ -4015,26 +4015,108 @@ if (currentTabNum === 1) {
                 let totalCollected = activePage.collected || 0;
                 let totalRem = totalOld + totalNew - totalCollected;
 
-                // دالة الدفع السريع والمسح
+                // --- 1. نظام التراجع (شبكة الأمان 10 ثواني) ---
+                window.deletedCustStore = window.deletedCustStore || {};
+
+                window.undoCustPayment = function(toastId) {
+                    let data = window.deletedCustStore[toastId];
+                    if(!data) return;
+                    let page = sysDB.customer_pages[data.pageIdx];
+                    if(page) {
+                        page.debts.push(data.item);
+                        page.collected -= data.amt;
+                        if(page.collected < 0) page.collected = 0; // تأمين الرصيد
+                        saveDB();
+                        renderActiveSection();
+                        showToast(`تم التراجع ورجوع حساب [${data.item.name}]`, "success");
+                    }
+                    let t = document.getElementById(`toast-${toastId}`);
+                    if (t) { t.style.animation = 'slideOut 0.4s forwards'; setTimeout(() => t.remove(), 400); }
+                    delete window.deletedCustStore[toastId];
+                };
+
+                // --- 2. دالة الدفع الكامل والمسح ---
                 window.payAndRemoveCustomerDebt = function(id) {
                     let page = sysDB.customer_pages[activeCustomerPageIndex];
                     let idx = page.debts.findIndex(d => d.id === id);
                     if(idx !== -1) {
-                        let item = page.debts[idx];
-                        page.collected += Math.floor(item.amount);
+                        // أخذ نسخة من الزبون قبل مسحه عشان التراجع
+                        let item = JSON.parse(JSON.stringify(page.debts[idx])); 
+                        let amt = Math.floor(item.amount);
+                        
+                        page.collected += amt;
                         page.debts.splice(idx, 1);
                         
-                        if(typeof addToTrashBin === 'function') {
-                            addToTrashBin(item, 'customers', 'ديون العملاء');
-                        }
-                        
-                        logAction(`تسديد ومسح حساب [${item.name}] بقيمة ${Math.floor(item.amount)} د.ل`, 'ديون العملاء');
                         saveDB(); 
                         renderActiveSection();
+
+                        // إنشاء زرار التراجع لمدة 10 ثواني
+                        let toastId = Date.now();
+                        window.deletedCustStore[toastId] = { item: item, pageIdx: activeCustomerPageIndex, amt: amt };
+                        
+                        const container = document.getElementById('toast-container');
+                        const toast = document.createElement('div');
+                        toast.className = `toast warning`;
+                        toast.id = `toast-${toastId}`;
+                        toast.style.display = 'flex'; toast.style.justifyContent = 'space-between'; toast.style.width = '320px'; toast.style.borderLeft = '4px solid var(--warning)';
+                        toast.innerHTML = `<span style="font-size:13px; font-weight:900; color:#fff;">✔️ سداد كامل: ${item.name}</span><button style="background:var(--warning); color:#000; border:none; padding:6px 15px; border-radius:4px; font-weight:900; cursor:pointer;" onclick="undoCustPayment(${toastId})">تراجع ↩️</button>`;
+                        container.appendChild(toast);
+                        
+                        setTimeout(() => {
+                            let t = document.getElementById(`toast-${toastId}`);
+                            if (t) { 
+                                t.style.animation = 'slideOut 0.4s forwards'; 
+                                setTimeout(() => { t.remove(); delete window.deletedCustStore[toastId]; }, 400); 
+                                logAction(`تسديد ومسح حساب [${item.name}] بقيمة ${amt} د.ل`, 'ديون العملاء');
+                            }
+                        }, 10000); // 10 ثواني بالظبط
                     }
                 };
 
-                // دالة إضافة زبون جديد سريع
+                // --- 3. دوال التسديد الجزئي ---
+                window.showCustPartPay = function(id) {
+                    document.getElementById('cust-btns-' + id).style.display = 'none';
+                    document.getElementById('cust-inline-' + id).style.display = 'flex';
+                    setTimeout(() => document.getElementById('cust-part-input-' + id).focus(), 100);
+                };
+                
+                window.hideCustPartPay = function(id) {
+                    document.getElementById('cust-btns-' + id).style.display = 'flex';
+                    document.getElementById('cust-inline-' + id).style.display = 'none';
+                    document.getElementById('cust-part-input-' + id).value = '';
+                };
+
+                window.submitCustPartPay = function(id) {
+                    let input = document.getElementById('cust-part-input-' + id);
+                    let val = Math.floor(parseFloat(input.value));
+                    if(isNaN(val) || val <= 0) return;
+
+                    let page = sysDB.customer_pages[activeCustomerPageIndex];
+                    let item = page.debts.find(d => d.id === id);
+                    if(!item) return;
+
+                    if(val > item.amount) {
+                        showToast('المبلغ المدخل أكبر من الدين الفعلي!', 'error');
+                        return;
+                    }
+
+                    item.amount -= val;
+                    page.collected += val; // إضافة الفلوس للكارت
+                    
+                    logAction(`تسديد جزئي (${val} د.ل) من حساب [${item.name}] — المتبقي: ${Math.floor(item.amount)}`, 'ديون العملاء');
+                    
+                    if(item.amount <= 0) {
+                        page.debts = page.debts.filter(d => d.id !== id);
+                        showToast(`تم تصفية حساب ${item.name} بالكامل`, 'success');
+                    } else {
+                        showToast(`تم تسديد ${val} د.ل بنجاح`, 'success');
+                    }
+                    
+                    saveDB();
+                    renderActiveSection();
+                };
+
+                // --- 4. إضافة زبون جديد سريع ---
                 window.addFastCustomerDebt = function() {
                     let nameInput = document.getElementById('addNameInput');
                     let amtInput = document.getElementById('addAmountInput');
@@ -4049,11 +4131,11 @@ if (currentTabNum === 1) {
                     let page = sysDB.customer_pages[activeCustomerPageIndex];
                     
                     if(page.debts.some(item => item.name === name)) { 
-                        showToast(`⚠️ الاسم [${name}] مسجل مسبقاً!`, "error"); 
+                        showToast(`⚠️ الاسم [${name}] مسجل مسبقاً! قم بعمل تسديد جزئي بدلاً من ذلك.`, "error"); 
                         return; 
                     }
 
-                    page.debts.push({ id: Date.now(), name: name, amount: amt, lastPaymentDate: Date.now() });
+                    page.debts.unshift({ id: Date.now(), name: name, amount: amt, lastPaymentDate: Date.now() });
                     page.new_work += amt; 
                     
                     logAction(`إضافة حساب جديد [${name}] بقيمة ${amt} د.ل`, 'ديون العملاء');
@@ -4066,7 +4148,7 @@ if (currentTabNum === 1) {
                     }, 100);
                 };
 
-                // دالة تقفيل اليوم
+                // --- 5. دالة تقفيل اليوم ---
                 window.closeCustomerDay = function() {
                     if(!confirm('هل أنت متأكد من إقفال اليوم وترحيل الباقي ليوم جديد؟')) return;
                     
@@ -4107,13 +4189,21 @@ if (currentTabNum === 1) {
                         <td class="serial-cell">${offset + index + 1}</td>
                         <td><b style="font-size:14px;">${item.name}</b></td>
                         <td style="color:var(--danger); font-weight:900; font-size:16px;">${Math.floor(item.amount)}</td>
-                        <td>
-                            <button class="btn-mini b-add-more" style="padding:8px 15px; font-size:12px; border-radius:6px; box-shadow:0 4px 6px rgba(0,0,0,0.3);" onclick="payAndRemoveCustomerDebt(${item.id})">✔ تسديد ومسح</button>
+                        <td style="width:140px;">
+                            <div id="cust-btns-${item.id}" style="display:flex; gap:4px; justify-content:center;">
+                                <button class="btn-mini b-part" style="padding:6px 8px; font-size:11px; border-radius:4px;" onclick="showCustPartPay(${item.id})" title="دفع جزء من المبلغ">➖ جزئي</button>
+                                <button class="btn-mini b-add-more" style="padding:6px 8px; font-size:11px; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="payAndRemoveCustomerDebt(${item.id})" title="دفع المبلغ بالكامل ومسح الحساب">✔ كامل</button>
+                            </div>
+                            <div id="cust-inline-${item.id}" style="display:none; gap:4px; justify-content:center; align-items:center;">
+                                <input type="number" id="cust-part-input-${item.id}" class="glass-input" style="width:65px; height:26px; padding:0 4px; text-align:center; font-size:13px; font-weight:900; color:#000; background:#fff;" placeholder="المبلغ" onkeydown="if(event.key==='Enter') submitCustPartPay(${item.id})">
+                                <button class="btn-mini b-add-more" style="padding:4px 8px;" onclick="submitCustPartPay(${item.id})">✔</button>
+                                <button class="btn-mini b-full" style="padding:4px 8px;" onclick="hideCustPartPay(${item.id})">❌</button>
+                            </div>
                         </td>
                     </tr>`;
                 }).join('');
 
-                let tableHeader = `<thead><tr><th class="serial-cell" style="width:40px;">ت</th><th>الاسم</th><th>المبلغ</th><th>إجراء</th></tr></thead>`;
+                let tableHeader = `<thead><tr><th class="serial-cell" style="width:40px;">ت</th><th>الاسم</th><th>المبلغ</th><th>إجراء التحصيل</th></tr></thead>`;
 
                 container.innerHTML = `
                     <style>.b-calc, #calcModal { display: none !important; }</style>
