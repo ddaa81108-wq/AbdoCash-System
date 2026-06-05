@@ -4961,16 +4961,16 @@ if (currentTabNum === 1) {
                 document.getElementById('dtAmount').focus();
             }
         }
-
-        window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
+window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
             let pageIdx = window[pagesKey === 'company_pages' ? 'activeCompanyPageIndex' : 'activeWholesalePageIndex'];
             let client = sysDB[pagesKey][pageIdx].debts.find(d => d.id === clientId);
             if(client && client.transactions) {
                 client.transactions.splice(transIdx, 1);
                 saveDB(); renderActiveSection(); renderTransactionsList(pagesKey, clientId);
             }
-        }
-           // ======== كود الربط بالسحابة (المزامنة الذكية) ========
+        };
+
+        // ======== كود الربط بالسحابة (المزامنة الذكية) ========
         let _saveDBBusy = false;
         window.saveDB = async function() {
             if(_saveDBBusy) return;
@@ -5030,7 +5030,7 @@ if (currentTabNum === 1) {
                     sysDB = localDB; // لو مفيش نت خالص
                 }
 
-                // 4. السر اللي كان مخفي عن إيدج: أمر فرش الداتا على الشاشة!
+                // 4. أمر فرش الداتا على الشاشة
                 if(typeof renderActiveSection === 'function') {
                     renderActiveSection();
                 }
@@ -5043,7 +5043,8 @@ if (currentTabNum === 1) {
         };
         // ==============================================
         if(typeof updateUserChip === 'function') updateUserChip();
-    });     
+    });
+     
     </script>
     <style>
         table tr:hover, 
