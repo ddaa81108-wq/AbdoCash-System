@@ -4019,57 +4019,68 @@ if (currentTabNum === 1) {
 
                 container.innerHTML = `${toolbarHtml}<div class="split-layout"><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div><div class="table-container"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:15px;">فارغ</td></tr>'}</tbody></table></div></div>`;
             }
-           else if (currentTabNum === 2 || currentTabNum === 3) {
+          else if (currentTabNum === 2 || currentTabNum === 3) {
                 let dbKey = currentTabNum === 2 ? 'companies' : 'wholesale';
                 let pagesKey = currentTabNum === 2 ? 'company_pages' : 'wholesale_pages';
                 let activePageIndexKey = currentTabNum === 2 ? 'activeCompanyPageIndex' : 'activeWholesalePageIndex';
 
-                if(window[activePageIndexKey] === undefined) window[activePageIndexKey] = 0;
+                // معالجة مشكلة undefined وتأمين المتغيرات
+                if(typeof window[activePageIndexKey] === 'undefined' || window[activePageIndexKey] === null) {
+                    window[activePageIndexKey] = 0;
+                }
                 
-                // تهيئة القسم إذا كان فارغاً
                 if (!sysDB[pagesKey] || sysDB[pagesKey].length === 0) {
                     sysDB[pagesKey] = [{ id: 1, label: 'اليوم الأول — ' + new Date().toLocaleDateString('ar-EG'), created_at: Date.now(), carried_forward: false, debts: [] }];
                     window[activePageIndexKey] = 0;
                     saveDB();
                 }
 
-                if(window[activePageIndexKey] >= sysDB[pagesKey].length) window[activePageIndexKey] = sysDB[pagesKey].length - 1;
+                if(window[activePageIndexKey] >= sysDB[pagesKey].length) {
+                    window[activePageIndexKey] = sysDB[pagesKey].length - 1;
+                }
 
                 let activePage = sysDB[pagesKey][window[activePageIndexKey]];
 
-                // رسم تبويبات الأيام
                 let dayTabsHtml = sysDB[pagesKey].map((p, i) => {
                     let isActive = i === window[activePageIndexKey];
                     let badge = p.carried_forward ? `<span style="background:#059669;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;margin-left:4px;">↩مرحل</span>` : "";
-                    return `<button onclick="window['${activePageIndexKey}']=${i}; renderActiveSection()" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;background:${isActive?"var(--primary)":"transparent"};color:${isActive?"#000":"var(--primary)"};border:1px solid var(--primary);white-space:nowrap;flex-shrink:0;">${badge}${p.label}</button>`;
+                    return `<button onclick="window['${activePageIndexKey}']=${i}; renderActiveSection()" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;background:${isActive?"var(--primary)":"transparent"};color:${isActive?"#000":"var(--primary)"};border:1px solid var(--primary);white-space:nowrap;flex-shrink:0;">${badge}${p.label || 'اليوم '+(i+1)}</button>`;
                 }).join("");
 
                 let totalOld = 0, totalNew = 0, totalSum = 0, totalPaid = 0, totalRem = 0;
                 let searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
                 let filteredDebts = activePage.debts.filter(d => d.name.toLowerCase().includes(searchQuery));
 
-                // رسم صفوف الجدول
                 let rowsHtml = filteredDebts.map((item, index) => {
-                    let newWork = item.transactions ? item.transactions.reduce((s, t) => s + t.result, 0) : (item.new_work || 0);
+                    let transNewWork = item.transactions ? item.transactions.reduce((s, t) => s + t.result, 0) : 0;
+                    let manualNewWork = item.new_work || 0;
+                    let totalNewWork = manualNewWork + transNewWork;
+                    
                     let oldDebt = item.old_debt || 0;
-                    let total = oldDebt + newWork;
+                    let total = oldDebt + totalNewWork;
                     let paid = item.payment || 0;
                     let rem = total - paid;
 
-                    totalOld += oldDebt; totalNew += newWork; totalSum += total; totalPaid += paid; totalRem += rem;
-                    item.new_work = newWork; item.total = total; item.remaining = rem;
+                    totalOld += oldDebt; totalNew += totalNewWork; totalSum += total; totalPaid += paid; totalRem += rem;
+                    
+                    // تحديث القيم في الذاكرة لتكون جاهزة للترحيل
+                    item.total = total; item.remaining = rem;
 
                     return `
-                    <tr style="height:38px; border-bottom: 1px solid var(--border);">
+                    <tr style="height:42px; border-bottom: 1px solid var(--border);">
                         <td class="serial-cell">${index + 1}</td>
                         <td style="font-weight:900; color:var(--primary); font-size:14px;">${item.name}</td>
                         <td><input type="number" class="glass-input" style="width:80px;text-align:center;font-weight:900;" value="${oldDebt}" onchange="updateDebtField('${pagesKey}', ${item.id}, 'old_debt', this.value)"></td>
-                        <td style="color:var(--warning); font-weight:900; font-size:15px; background:rgba(245,158,11,0.05);">${newWork}</td>
-                        <td style="color:var(--secondary); font-weight:900; font-size:15px;">${total}</td>
+                        
+                        <td><input type="number" class="glass-input" style="width:80px;text-align:center;font-weight:900;color:var(--warning);background:rgba(245,158,11,0.05);" value="${totalNewWork}" onchange="updateDebtField('${pagesKey}', ${item.id}, 'new_work', this.value); sysDB['${pagesKey}'][window['${activePageIndexKey}']].debts.find(d=>d.id==${item.id}).transactions=[]; saveDB(); renderActiveSection();"></td>
+                        
+                        <td style="color:var(--secondary); font-weight:900; font-size:15px; background:rgba(56,189,248,0.05);">${total}</td>
+                        
                         <td><input type="number" class="glass-input" style="width:80px;text-align:center;font-weight:900;color:var(--success);" value="${paid}" onchange="updateDebtField('${pagesKey}', ${item.id}, 'payment', this.value)"></td>
+                        
                         <td style="color:var(--danger); font-weight:900; font-size:16px; background:rgba(239,68,68,0.05);">${rem}</td>
                         <td>
-                            <button class="btn-mini b-calc" onclick="openTransactionModal('${pagesKey}', ${item.id}, '${item.name}')">➕ عمليات</button>
+                            <button class="btn-mini b-calc" onclick="openTransactionModal('${pagesKey}', ${item.id}, '${item.name}')" title="عمليات حسابية معقدة">➕ عمليات</button>
                             <button class="btn-mini b-full" onclick="deleteDebtItem('${pagesKey}', ${item.id})">❌</button>
                         </td>
                     </tr>`;
@@ -4080,7 +4091,7 @@ if (currentTabNum === 1) {
                 container.innerHTML = `
                     <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px 16px;margin-bottom:8px;">
                         <div style="font-size:17px;font-weight:900;color:var(--text-main);">${sectionTitle}</div>
-                        <button onclick="createNewDebtDay('${pagesKey}', '${activePageIndexKey}')" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;">➕ يوم جديد (ترحيل الأرصدة)</button>
+                        <button onclick="createNewDebtDay('${pagesKey}', '${activePageIndexKey}')" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;box-shadow:0 4px 10px rgba(56,189,248,0.3);">➕ يوم جديد (ترحيل الأرصدة)</button>
                     </div>
                     <div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;align-items:center;flex-wrap:nowrap;">
                         <span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">📅 الأيام:</span>
@@ -4098,9 +4109,9 @@ if (currentTabNum === 1) {
                         </div>
                     </div>
 
-                    <div class="table-container" style="width:100%; border:2px solid var(--primary); box-shadow: 0 0 15px rgba(56,189,248,0.1);">
+                    <div class="table-container" style="width:100%; border:2px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom:20px;">
                         <table>
-                            <thead style="background:rgba(56,189,248,0.15);">
+                            <thead style="background:var(--bg-dark);">
                                 <tr>
                                     <th class="serial-cell">ID</th>
                                     <th>الاسم</th>
@@ -4108,23 +4119,34 @@ if (currentTabNum === 1) {
                                     <th>شغل جديد</th>
                                     <th>الإجمالي</th>
                                     <th>تسديد</th>
-                                    <th>الباقي (المستحق)</th>
+                                    <th>الباقي المستحق</th>
                                     <th>إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${rowsHtml || '<tr><td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">لا يوجد حسابات في هذا اليوم.</td></tr>'}
-                                <tr class="total-row" style="background: rgba(0,0,0,0.4); border-top:2px solid var(--primary);">
-                                    <td colspan="2" style="font-weight:900; color:var(--text-main); font-size:14px;">الإجماليات الكلية</td>
-                                    <td style="font-weight:900; color:var(--text-main); font-size:15px;">${totalOld}</td>
-                                    <td style="font-weight:900; color:var(--warning); font-size:15px;">${totalNew}</td>
-                                    <td style="font-weight:900; color:var(--secondary); font-size:15px;">${totalSum}</td>
-                                    <td style="font-weight:900; color:var(--success); font-size:15px;">${totalPaid}</td>
-                                    <td style="font-weight:900; color:var(--danger); font-size:16px;">${totalRem}</td>
-                                    <td></td>
-                                </tr>
+                                ${rowsHtml || '<tr><td colspan="8" style="text-align:center; padding:30px; font-size:16px; color:var(--text-muted);">لا توجد حسابات مسجلة في هذا اليوم.</td></tr>'}
                             </tbody>
                         </table>
+                    </div>
+
+                    <h3 style="color:var(--text-muted); font-size:14px; margin-bottom:10px; text-align:center;">📊 خلاصة إجماليات اليوم</h3>
+                    <div style="display:flex; gap:15px; margin-bottom:30px; justify-content:center; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(15,23,42,0.8), rgba(30,41,59,0.8)); border:1px solid var(--text-muted); border-radius:12px; padding:20px; text-align:center; box-shadow:0 6px 15px rgba(0,0,0,0.2);">
+                            <div style="font-size:13px; color:var(--text-muted); font-weight:900; margin-bottom:8px;">إجمالي باقي قديم</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--text-main);">${totalOld}</div>
+                        </div>
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(245,158,11,0.1), rgba(217,119,6,0.1)); border:1px solid var(--warning); border-radius:12px; padding:20px; text-align:center; box-shadow:0 6px 15px rgba(245,158,11,0.15);">
+                            <div style="font-size:13px; color:var(--warning); font-weight:900; margin-bottom:8px;">إجمالي شغل جديد</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--warning);">${totalNew}</div>
+                        </div>
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.1)); border:1px solid var(--success); border-radius:12px; padding:20px; text-align:center; box-shadow:0 6px 15px rgba(16,185,129,0.15);">
+                            <div style="font-size:13px; color:var(--success); font-weight:900; margin-bottom:8px;">إجمالي التسديد</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--success);">${totalPaid}</div>
+                        </div>
+                        <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.1)); border:1px solid var(--danger); border-radius:12px; padding:20px; text-align:center; box-shadow:0 6px 15px rgba(239,68,68,0.15);">
+                            <div style="font-size:13px; color:var(--danger); font-weight:900; margin-bottom:8px;">الباقي المستحق (النهائي)</div>
+                            <div style="font-size:26px; font-weight:900; color:var(--danger);">${totalRem}</div>
+                        </div>
                     </div>
                 `;
                 if (typeof ensureTransactionModal === 'function') ensureTransactionModal();
