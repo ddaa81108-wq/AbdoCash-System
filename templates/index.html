@@ -4970,22 +4970,25 @@ if (currentTabNum === 1) {
                 saveDB(); renderActiveSection(); renderTransactionsList(pagesKey, clientId);
             }
         }
-            }// ======== كود الربط بالسحابة (MongoDB) ========
+           // ======== كود الربط بالسحابة (المزامنة الذكية) ========
         let _saveDBBusy = false;
         window.saveDB = async function() {
             if(_saveDBBusy) return;
             _saveDBBusy = true;
             try {
-                // 1. الحفظ في المتصفح كنسخة احتياطية
+                // 1. إضافة ختم زمني (عشان نعرف أحدث نسخة بالثانية)
+                sysDB.last_updated = Date.now();
+
+                // 2. الحفظ في المتصفح كنسخة احتياطية سريعة
                 localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
                 
-                // 2. الإرسال لخزنة MongoDB السحابية
+                // 3. الإرسال لخزنة MongoDB السحابية
                 await fetch('/api/save_data', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(sysDB)
-                });
-            } catch(e) { console.error("خطأ في الاتصال:", e); }
+                }).catch(e => console.log("السحابة غير متصلة مؤقتاً، تم الحفظ محلياً."));
+            } catch(e) { console.error("خطأ عام في الحفظ:", e); }
             
             setTimeout(() => { _saveDBBusy = false; }, 300);
         };
@@ -4993,21 +4996,54 @@ if (currentTabNum === 1) {
         let originalOnload = window.onload;
         window.onload = async function() {
             try {
-                // جلب البيانات من MongoDB أول ما الموقع يفتح
-                let response = await fetch('/api/load_data');
-                let result = await response.json();
-                if (result.status === 'success' && result.data) { 
-                    sysDB = result.data; 
+                // 1. سحب النسخة المحلية من المتصفح
+                let localDataStr = localStorage.getItem('ABDO_SYSTEM_FINAL_DB');
+                let localDB = localDataStr ? JSON.parse(localDataStr) : null;
+                let localTime = (localDB && localDB.last_updated) ? localDB.last_updated : 0;
+
+                // 2. سحب النسخة اللي على السحابة
+                let cloudDB = null;
+                let cloudTime = 0;
+                try {
+                    let response = await fetch('/api/load_data');
+                    let result = await response.json();
+                    if (result.status === 'success' && result.data) {
+                        cloudDB = result.data;
+                        cloudTime = cloudDB.last_updated ? cloudDB.last_updated : 0;
+                    }
+                } catch(e) { console.log("جاري العمل محلياً لصعوبة الاتصال بالسحابة..."); }
+
+                // 3. المزامنة الذكية (قاضية على مشكلة ضياع البيانات)
+                if (localDB && localTime > cloudTime) {
+                    // لو النت قطع واشتغلت محلي، المحلي هيكسب ويترفع يغطي السحابة
+                    sysDB = localDB;
+                    fetch('/api/save_data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(sysDB)
+                    }).catch(e=>{});
+                } else if (cloudDB && cloudTime >= localTime) {
+                    // لو متصفح جديد (زي إيدج) أو السحابة أحدث، السحابة تكسب وتغطي المتصفح
+                    sysDB = cloudDB;
+                    localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
+                } else if (localDB) {
+                    sysDB = localDB; // لو مفيش نت خالص
                 }
-            } catch(e) { console.log("جاري العمل محلياً..."); }
+
+                // 4. السر اللي كان مخفي عن إيدج: أمر فرش الداتا على الشاشة!
+                if(typeof renderActiveSection === 'function') {
+                    renderActiveSection();
+                }
+
+            } catch(e) { console.error("خطأ أثناء المزامنة:", e); }
             
             if(typeof originalOnload === 'function') {
                 originalOnload();
             }
         };
         // ==============================================
-            updateUserChip();
-        });
+        if(typeof updateUserChip === 'function') updateUserChip();
+    });     
     </script>
     <style>
         table tr:hover, 
