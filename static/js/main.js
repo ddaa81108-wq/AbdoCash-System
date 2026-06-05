@@ -3449,7 +3449,7 @@ if (currentTabNum === 1) {
                     <div class="smart-toolbar" style="border:2px solid var(--primary); box-shadow: 0 4px 15px rgba(56,189,248,0.15); border-radius:10px;">
                         <div class="toolbar-group">
                             <input type="text" id="addNameInput" list="savedNames" autocomplete="off" class="glass-input" placeholder="اسم العميل..." style="width:180px; height:45px; font-size:16px;" onkeydown="if(event.key === 'Enter') addFastCustomerDebt()">
-                            <input type="number" id="addAmountInput" autocomplete="off" class="glass-input" placeholder="المبلغ" style="width:120px; height:45px; font-size:18px; text-align:center; font-weight:900;" onkeydown="if(event.key === 'Enter') addFastCustomerDebt()">
+                            <input type="number" id="addAmountInput" autocomplete="off" class="glass-input" placeholder="المبلغ" style="width:120px; height:45px; font-size:18px; text-align:center; font-weight:900;" onkeydown="if(event.key === 'Enter') addFastCustomerDebt()">\n<input type="date" id="addDueDateInput" class="glass-input" title="تاريخ الاستحقاق (اختياري)" style="height:45px; width:130px; font-size:14px; text-align:center;">
                             <button class="btn-g btn-add" style="height:45px; font-size:16px; padding:0 25px; box-shadow:0 4px 10px rgba(0,230,118,0.3);" onclick="addFastCustomerDebt()">✔️ إضافة (إنتر)</button>
                         </div>
                         <div class="toolbar-group">
