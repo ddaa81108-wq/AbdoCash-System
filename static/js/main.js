@@ -1859,12 +1859,7 @@ function tryLogin() {
             else sysDB[dbKey] = arr;
         }
 
-        function switchTab(num) { 
-            currentTabNum = num; 
-            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active')); 
-            document.getElementById('item_' + num).classList.add('active'); 
-            renderActiveSection(); 
-        }
+       
         
         function switchMerchant(merchant) {
             activeMerchant = merchant;
