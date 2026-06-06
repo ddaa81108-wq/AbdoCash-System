@@ -249,8 +249,7 @@ function tryLogin() {
                         if(serverData && serverData.status === "success" && serverData.data) {
                             console.log("تم سحب البيانات من السحابة بنجاح!");
                             // بناخد البيانات الصافية من الصندوق ونفرشها في المنظومة
-                         sysDB = serverData.data;
-                            localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));       
+                            localStorage.setItem('abdo_data', JSON.stringify(serverData.data)); 
                         }
                         finalizeLoginSteps(user);
                     })
@@ -458,7 +457,14 @@ function tryLogin() {
                     <div style="font-size:12px;color:#94a3b8;font-weight:700;">💡 تلميح: اضغط على أي مستخدم لتوسيع صلاحياته. التغييرات تُطبَّق فوراً.</div>
                 </div>
                 ${usersHtml}
-              
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">
+                    <div style="font-size:12px;font-weight:900;color:#fbbf24;margin-bottom:8px;">🗝️ كلمات المرور الحالية (للمدير فقط):</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">
+                        ${db.users.map(u => `<div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:8px 10px;font-size:11px;font-weight:900;color:#94a3b8;">
+                            ${u.emoji} ${u.name}: <span style="color:#fbbf24;letter-spacing:2px;">${u.password}</span>
+                        </div>`).join('')}
+                    </div>
+                </div>`;
         }
 
         function toggleAdminRow(uid) {
@@ -476,20 +482,15 @@ function tryLogin() {
             if (!user || user.role === 'admin') return;
             user.permissions[sectionKey] = !user.permissions[sectionKey];
             saveAuthDB(db);
-  
-// تحديث الـ toggle فوراً
-            ;let tog = document.getElementById(`tog-${uid}-${sectionKey}`);
-            if (tog) {
-                tog.classList.toggle('on', user.permissions[sectionKey]);
-            }
+            // تحديث الـ toggle فوراً
+            let tog = document.getElementById(`tog-${uid}-${sectionKey}`);
+            if (tog) tog.classList.toggle('on', user.permissions[sectionKey]);
             logAction(`تعديل صلاحية "${sectionKey}" للمستخدم ${user.name}: ${user.permissions[sectionKey] ? 'مسموح' : 'محظور'}`, 'النظام');
             showToast(`تم تعديل صلاحية ${user.name}`, 'success');
-            
             // إعادة رندر الشريط الجانبي إذا كان هذا المستخدم مسجلاً
-            if (currentUser && currentUser.id === uid) { 
-                currentUser = user; 
-                renderSidebar(); 
-            }
+            if (currentUser && currentUser.id === uid) { currentUser = user; renderSidebar(); }
+        }
+
         function grantAllPerms(uid) {
             let db = initAuthDB();
             let user = db.users.find(u => u.id === uid);
@@ -813,7 +814,18 @@ function tryLogin() {
             setTimeout(() => location.reload(), 1500);
         }
 
-   
+        // دالة تسجيل الخروج
+        function logout() {
+            if(confirm("هل أنت متأكد من تسجيل الخروج؟")) {
+                sessionStorage.removeItem('abdo_logged_in');
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('dashboardSection').style.display = 'none';
+                document.getElementById('autoSaveBar').style.display = 'none';
+                document.getElementById('loginPassInput').value = '';
+                document.getElementById('loginPassInput').focus();
+                logAction('تسجيل خروج من النظام.');
+            }
+        }
 
         // ==========================================
         // ===== تنبيهات الديون القديمة =====
@@ -1857,7 +1869,12 @@ function tryLogin() {
             else sysDB[dbKey] = arr;
         }
 
-       
+        function switchTab(num) { 
+            currentTabNum = num; 
+            document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active')); 
+            document.getElementById('item_' + num).classList.add('active'); 
+            renderActiveSection(); 
+        }
         
         function switchMerchant(merchant) {
             activeMerchant = merchant;
