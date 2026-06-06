@@ -476,15 +476,20 @@ function tryLogin() {
             if (!user || user.role === 'admin') return;
             user.permissions[sectionKey] = !user.permissions[sectionKey];
             saveAuthDB(db);
-            // تحديث الـ toggle فوراً
-            let tog = document.getElementById(`tog-${uid}-${sectionKey}`);
-            if (tog) tog.classList.toggle('on', user.permissions[sectionKey]);
+  
+// تحديث الـ toggle فوراً
+            ;let tog = document.getElementById(`tog-${uid}-${sectionKey}`);
+            if (tog) {
+                tog.classList.toggle('on', user.permissions[sectionKey]);
+            }
             logAction(`تعديل صلاحية "${sectionKey}" للمستخدم ${user.name}: ${user.permissions[sectionKey] ? 'مسموح' : 'محظور'}`, 'النظام');
             showToast(`تم تعديل صلاحية ${user.name}`, 'success');
+            
             // إعادة رندر الشريط الجانبي إذا كان هذا المستخدم مسجلاً
-            if (currentUser && currentUser.id === uid) { currentUser = user; renderSidebar(); }
-        }
-
+            if (currentUser && currentUser.id === uid) { 
+                currentUser = user; 
+                renderSidebar(); 
+            }
         function grantAllPerms(uid) {
             let db = initAuthDB();
             let user = db.users.find(u => u.id === uid);
