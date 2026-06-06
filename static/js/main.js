@@ -815,18 +815,7 @@ function tryLogin() {
             setTimeout(() => location.reload(), 1500);
         }
 
-        // دالة تسجيل الخروج
-        function logout() {
-            if(confirm("هل أنت متأكد من تسجيل الخروج؟")) {
-                sessionStorage.removeItem('abdo_logged_in');
-                document.getElementById('loginScreen').style.display = 'flex';
-                document.getElementById('dashboardSection').style.display = 'none';
-                document.getElementById('autoSaveBar').style.display = 'none';
-                document.getElementById('loginPassInput').value = '';
-                document.getElementById('loginPassInput').focus();
-                logAction('تسجيل خروج من النظام.');
-            }
-        }
+   
 
         // ==========================================
         // ===== تنبيهات الديون القديمة =====
