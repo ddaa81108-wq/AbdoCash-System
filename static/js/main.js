@@ -4255,7 +4255,7 @@ window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
     }
 });
 
-\n
+
 // ====== UI Split Logic ======
 function switchMainApp(appId, btnElement) {
     document.querySelectorAll('.top-nav-tab').forEach(btn => btn.classList.remove('active'));
