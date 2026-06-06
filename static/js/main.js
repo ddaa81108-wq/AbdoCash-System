@@ -249,7 +249,8 @@ function tryLogin() {
                         if(serverData && serverData.status === "success" && serverData.data) {
                             console.log("تم سحب البيانات من السحابة بنجاح!");
                             // بناخد البيانات الصافية من الصندوق ونفرشها في المنظومة
-                            localStorage.setItem('abdo_data', JSON.stringify(serverData.data)); 
+                         sysDB = serverData.data;
+                            localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));       
                         }
                         finalizeLoginSteps(user);
                     })
