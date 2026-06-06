@@ -458,14 +458,7 @@ function tryLogin() {
                     <div style="font-size:12px;color:#94a3b8;font-weight:700;">💡 تلميح: اضغط على أي مستخدم لتوسيع صلاحياته. التغييرات تُطبَّق فوراً.</div>
                 </div>
                 ${usersHtml}
-                <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);">
-                    <div style="font-size:12px;font-weight:900;color:#fbbf24;margin-bottom:8px;">🗝️ كلمات المرور الحالية (للمدير فقط):</div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">
-                        ${db.users.map(u => `<div style="background:rgba(0,0,0,0.3);border-radius:6px;padding:8px 10px;font-size:11px;font-weight:900;color:#94a3b8;">
-                            ${u.emoji} ${u.name}: <span style="color:#fbbf24;letter-spacing:2px;">${u.password}</span>
-                        </div>`).join('')}
-                    </div>
-                </div>`;
+              
         }
 
         function toggleAdminRow(uid) {
