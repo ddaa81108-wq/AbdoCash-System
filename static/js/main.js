@@ -1199,7 +1199,7 @@ function tryLogin() {
         }
 
         window.onload = function() {
-            checkSession();
+           initAuthSystem();
             updateDataLists(); 
             renderActiveSection(); 
             checkBackupTime();
