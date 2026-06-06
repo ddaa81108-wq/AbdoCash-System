@@ -4292,23 +4292,4 @@ document.addEventListener('DOMContentLoaded', () => {
         switchMainApp('clients');
     }, 500);
 });
-// ====== كود إصلاح مقاسات الشاشة والفراغ ======
-document.addEventListener('DOMContentLoaded', () => {
-    let styleFix = document.createElement('style');
-    styleFix.innerHTML = `
-        #dashboardSection {
-            display: flex !important;
-            width: 100% !important;
-        }
-        #dynamicSectionContent {
-            flex: 1 !important; /* أمر التمدد لملء الفراغ بالكامل */
-            width: 100% !important;
-            max-width: 100% !important;
-            min-width: 0 !important; 
-        }
-        .sidebar {
-            flex-shrink: 0 !important; /* تثبيت حجم القائمة الجانبية */
-        }
-    `;
-    document.head.appendChild(styleFix);
-});
+
