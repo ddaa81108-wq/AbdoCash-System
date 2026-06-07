@@ -237,9 +237,9 @@ function tryLogin() {
                 document.getElementById('dashboardSection').style.display = 'flex';
                 document.getElementById('autoSaveBar').style.display = 'flex';
 
+                   // ===== كابل السحب السحابي من قاعدة البيانات =====
                 // ===== كابل السحب السحابي من قاعدة البيانات =====
-              // ===== كابل السحب السحابي من قاعدة البيانات =====
-                fetch('/api/load_data') // ربطنا الكابل بالاسم الصحيح في السيرفر بتاعك
+                fetch('https://abdocash-system.onrender.com/api/load_data') // تم توجيه الكابل للسحابة العالمية
                     .then(response => {
                         if(response.ok) return response.json();
                         throw new Error('جاري العمل على الذاكرة المحلية مؤقتاً');
@@ -252,7 +252,7 @@ function tryLogin() {
                             localStorage.setItem('abdo_data', JSON.stringify(serverData.data)); 
                         }
                         finalizeLoginSteps(user);
-                    })
+                    }) 
                     .catch(error => {
                         console.log(error.message);
                         finalizeLoginSteps(user); // تشغيل المنظومة أوتوماتيك حتى لو مفيش اتصال
