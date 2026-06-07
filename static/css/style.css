@@ -536,3 +536,8 @@
 .top-nav-tab.active { background: var(--primary); color: #000; box-shadow: 0 4px 10px var(--primary-glow); }
 body { direction: rtl !important; }
 .top-nav-bar { display: none !important; }
+/* مسح الفراغ العلوي اللي كان محجوز للشريط */
+.main-content { padding-top: 25px !important; }
+
+/* إخفاء السكرول المزعج من القائمة الجانبية */
+.sidebar { overflow: hidden !important; }
