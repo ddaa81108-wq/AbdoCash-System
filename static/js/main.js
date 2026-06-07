@@ -4215,7 +4215,7 @@ window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
                 let cloudDB = null;
                 let cloudTime = 0;
                 try {
-                    let response = await fetch('/api/load_data');
+                    let response = await fetch(API_BASE + '/api/load_data');
                     let result = await response.json();
                     if (result.status === 'success' && result.data) {
                         cloudDB = result.data;
@@ -4227,7 +4227,7 @@ window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
                 if (localDB && localTime > cloudTime) {
                     // لو النت قطع واشتغلت محلي، المحلي هيكسب ويترفع يغطي السحابة
                     sysDB = localDB;
-                    fetch('/api/save_data', {
+                    fetch(API_BASE + '/api/save_data', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(sysDB)
