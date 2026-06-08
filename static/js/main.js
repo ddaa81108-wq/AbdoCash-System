@@ -2160,12 +2160,40 @@ function tryLogin() {
                 item.amount -= amt;
                 item.lastPaymentDate = Date.now();
                 logAction(`تسديد (${amt} د.ل) من [${item.name}] — المتبقي: ${Math.floor(item.amount)}`, 'ديون العملاء');
-                if(item.amount <= 0) {
-                    arr.splice(arr.indexOf(item), 1);
-                    showToast(`🎉 تم تصفية حساب ${item.name} بالكامل!`, 'success');
-                } else {
-                    showToast(`✅ تسديد ${amt} — المتبقي: ${Math.floor(item.amount)} د.ل`, 'success');
-                }
+               if(item.amount <= 0) {
+
+    const archivedItem = JSON.parse(JSON.stringify({
+        ...item,
+        amount: 0
+    }));
+
+    addToTrashBin(
+        archivedItem,
+        'customers',
+        'ديون العملاء'
+    );
+
+    const idx = arr.findIndex(x => x.id === item.id);
+
+    if(idx !== -1){
+        arr.splice(idx,1);
+    }
+
+    saveDB();
+
+    showToast(
+        `🎉 تم تصفية حساب ${item.name} ونقله للسلة`,
+        'success'
+    );
+
+} else {
+
+    showToast(
+        `✅ تسديد ${amt} — المتبقي: ${Math.floor(item.amount)} د.ل`,
+        'success'
+    );
+
+}
             }
             delete _custCardMode[id];
             saveDB();
