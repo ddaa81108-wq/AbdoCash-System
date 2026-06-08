@@ -2099,13 +2099,22 @@ function tryLogin() {
             localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
         }
 
-        function deletePurchaseRecord(id) {
-            if(!confirm("هل أنت متأكد من مسح هذه العملية؟")) return;
-            sysDB.purchases[activeMerchant] = sysDB.purchases[activeMerchant].filter(i => i.id !== id);
-            saveDB();
-            renderActiveSection();
-            showToast("تم الحذف", "success");
-        }
+       function deletePurchaseRecord(id) {
+    if(!confirm("هل أنت متأكد من مسح هذه العملية؟")) return;
+    
+    // 1. بندور على العملية وناخد منها نسخة قبل ما تتمسح
+    let record = sysDB.purchases[activeMerchant].find(i => i.id === id);
+    
+    // 2. بنرمي النسخة دي في سلة المحذوفات وبنسميها باسم التاجر (البيان أو سمسم)
+    if(record) addToTrashBin(record, 'purchases_' + activeMerchant, 'المشتريات — ' + (activeMerchant === 'bayan' ? 'البيان' : 'سمسم'));
+    
+    // 3. كود المسح الأصلي بتاعك اللي بيشيلها من الحسابات
+    sysDB.purchases[activeMerchant] = sysDB.purchases[activeMerchant].filter(i => i.id !== id);
+    
+    saveDB(); 
+    renderActiveSection(); 
+    showToast("تم نقل العملية للسلة", "success");
+}
 
         function showInline(dbKey, id, type) { document.getElementById(`btns-${dbKey}-${id}`).style.display = 'none'; document.getElementById(`inline-${dbKey}-${id}`).style.display = 'flex'; document.getElementById(`input-${dbKey}-${id}`).focus(); inlineActionState[`${dbKey}_${id}`] = type; }
         function hideInline(dbKey, id) { document.getElementById(`btns-${dbKey}-${id}`).style.display = 'flex'; document.getElementById(`inline-${dbKey}-${id}`).style.display = 'none'; document.getElementById(`input-${dbKey}-${id}`).value = ''; delete inlineActionState[`${dbKey}_${id}`]; }
