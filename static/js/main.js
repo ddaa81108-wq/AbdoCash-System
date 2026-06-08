@@ -4203,13 +4203,44 @@ if (currentTabNum === 1) {
             }
         }
 window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
-            let pageIdx = window[pagesKey === 'company_pages' ? 'activeCompanyPageIndex' : 'activeWholesalePageIndex'];
-            let client = sysDB[pagesKey][pageIdx].debts.find(d => d.id === clientId);
-            if(client && client.transactions) {
-                client.transactions.splice(transIdx, 1);
-                saveDB(); renderActiveSection(); renderTransactionsList(pagesKey, clientId);
-            }
-        };
+    let pageIdx =
+        window[
+            pagesKey === 'company_pages'
+            ? 'activeCompanyPageIndex'
+            : 'activeWholesalePageIndex'
+        ];
+
+    let client =
+        sysDB[pagesKey][pageIdx]
+        .debts
+        .find(d => d.id === clientId);
+
+    if(!client || !client.transactions || !client.transactions[transIdx]) return;
+
+    // --- تجهيز الظرف اللي مكتوب عليه كل بيانات العميل والعملية ---
+    let deletedTrans = {
+        type: 'transaction',
+        clientId: client.id,
+        clientName: client.name,
+        pageIndex: pageIdx,
+        pagesKey: pagesKey,
+        transaction: JSON.parse(JSON.stringify(client.transactions[transIdx]))
+    };
+
+    // --- رمي الظرف في السلة ---
+    addToTrashBin(
+        deletedTrans,
+        'transactions',
+        pagesKey === 'company_pages' ? 'حسابات الشركات' : 'كبار العملاء'
+    );
+
+    client.transactions.splice(transIdx, 1);
+    saveDB();
+    renderActiveSection();
+    renderTransactionsList(pagesKey, clientId);
+    showToast("تم نقل التسلسل إلى السلة", "success");
+}
+        
 
         // ======== كود الربط بالسحابة (المزامنة الذكية) ========
         let _saveDBBusy = false;
