@@ -751,6 +751,7 @@ function tryLogin() {
         // ===== saveDB الآمنة المبكرة =====
         let _saveDBBusy = false;
         function saveDB() {
+         if (!sysDB.trash_bin) sysDB.trash_bin = [];       
             if(_saveDBBusy) return;
             _saveDBBusy = true;
             try {
