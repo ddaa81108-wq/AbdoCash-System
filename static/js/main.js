@@ -1495,39 +1495,133 @@ function tryLogin() {
             content.innerHTML = html;
         }
 
-        function restoreFromTrash(idx) {
-            let entry = sysDB.trash_bin[idx];
-            if(!entry) return;
-            let arr = getDbArr(entry.dbKey);
-            if(arr) {
-                arr.push(entry.item);
-                setDbArr(entry.dbKey, arr);
+       function restoreFromTrash(idx) {
+    let entry = sysDB.trash_bin[idx];
+    if(!entry) return;
+
+    let restoredName = "عنصر";
+    let restored = false; 
+
+    // 1. حالة المشتريات
+    if (entry.dbKey === 'purchases' || (entry.item && entry.item.__restore && entry.item.__restore.type === 'purchase')) {
+        let restoreMeta = entry.item.__restore || {};
+        let merchant = restoreMeta.merchant;
+        let originalIndex = restoreMeta.index;
+
+        if (merchant && sysDB.purchases && sysDB.purchases[merchant]) {
+            let restoredItem = JSON.parse(JSON.stringify(entry.item));
+            delete restoredItem.__restore;
+
+            if (!sysDB.purchases[merchant].some(x => x.id === restoredItem.id)) {
+                if (Number.isInteger(originalIndex) && originalIndex >= 0 && originalIndex <= sysDB.purchases[merchant].length) {
+                    sysDB.purchases[merchant].splice(originalIndex, 0, restoredItem);
+                } else {
+                    sysDB.purchases[merchant].push(restoredItem);
+                }
+                restoredName = restoredItem.name || restoredItem.description || "عملية مشتريات";
+                restored = true; 
+            } else {
+                showToast("⚠️ العملية موجودة بالفعل", "warning");
+                return;
             }
-            sysDB.trash_bin.splice(idx, 1);
-            logAction(`استرجاع [${entry.item.name}] من سلة المحذوفات.`);
-            saveDB();
-            renderActiveSection();
-            renderTrashContent();
-            showToast(`تم استرجاع [${entry.item.name}] بنجاح!`, "success");
+        } else {
+            showToast("❌ تعذر تحديد مكان الاسترجاع", "error");
+            return;
         }
+    }
+    // 2. حالة استرجاع "تسلسل" (عملية فرعية) لشركات أو كبار عملاء
+    else if (entry.item && entry.item.type === 'transaction') {
+        let pKey = entry.item.pagesKey;
+        let pIdx = entry.item.pageIndex;
+        let cId = entry.item.clientId;
+        
+        if(sysDB[pKey] && sysDB[pKey][pIdx]) {
+            let client = sysDB[pKey][pIdx].debts.find(d => d.id === cId);
+            if(client) {
+                if(!client.transactions) client.transactions = [];
+                
+                let tIndex = entry.item.transactionIndex;
+                let trans = entry.item.transaction;
+                let transId = trans?.id;
+                
+                let isExist = transId 
+                    ? client.transactions.some(t => t.id === transId) 
+                    : client.transactions.some(t => JSON.stringify(t) === JSON.stringify(trans));
+                
+                if (!isExist) {
+                    if (Number.isInteger(tIndex) && tIndex >= 0 && tIndex <= client.transactions.length) {
+                        client.transactions.splice(tIndex, 0, trans);
+                    } else {
+                        client.transactions.push(trans);
+                    }
+                    restoredName = "تسلسل لـ " + entry.item.clientName;
+                    restored = true; 
+                } else {
+                    showToast("⚠️ التسلسل موجود بالفعل", "warning");
+                    return;
+                }
+            } else {
+                showToast("❌ الحساب الأصلي غير موجود", "error");
+                return;
+            }
+        } else {
+            showToast("❌ الصفحة الأصلية غير موجودة", "error");
+            return;
+        }
+    }
+    // 3. حالة استرجاع "حساب شركة" كامل أو كبار عملاء
+    else if (entry.item && entry.item.type === 'debtItem') {
+        let pKey = entry.item.pagesKey;
+        let pIdx = entry.item.pageIndex;
+        
+        if(sysDB[pKey] && sysDB[pKey][pIdx]) {
+            if (!sysDB[pKey][pIdx].debts.some(d => d.id === entry.item.itemData.id)) {
+                sysDB[pKey][pIdx].debts.push(entry.item.itemData);
+                restoredName = entry.item.clientName || "حساب شركة/جملة";
+                restored = true; 
+            } else {
+                showToast("⚠️ الحساب موجود بالفعل", "warning");
+                return;
+            }
+        } else {
+            showToast("❌ الصفحة الأصلية غير موجودة", "error");
+            return;
+        }
+    }
+    // 4. الحالة العادية
+    else {
+        let arr = getDbArr(entry.dbKey);
+        if(arr) {
+            if (!entry.item.id || !arr.some(x => x.id === entry.item.id)) {
+                arr.push(entry.item);
+                // استخدام [...arr] لضمان تحديث الواجهة بشكل سليم 100%
+                setDbArr(entry.dbKey, [...arr]);
+                restoredName = entry.item.name || "عنصر";
+                restored = true; 
+            } else {
+                showToast("⚠️ العنصر موجود بالفعل", "warning");
+                return;
+            }
+        } else {
+            showToast("❌ لم يتم العثور على القسم لإرجاع العنصر!", "error");
+            return;
+        }
+    }
 
-        function permanentDeleteFromTrash(idx) {
-            let entry = sysDB.trash_bin[idx];
-            if(!entry) return;
-            if(!confirm(`حذف نهائي لـ [${entry.item.name}]؟ لا يمكن التراجع!`)) return;
-            sysDB.trash_bin.splice(idx, 1);
-            saveDB();
-            renderTrashContent();
-            showToast("تم الحذف النهائي", "warning");
-        }
+    if (!restored) {
+        showToast("❌ فشل الاسترجاع، الرجاء التأكد من البيانات", "error");
+        return;
+    }
 
-        function clearAllTrash() {
-            if(!confirm("إفراغ السلة بالكامل؟ لا يمكن التراجع!")) return;
-            sysDB.trash_bin = [];
-            saveDB();
-            renderTrashContent();
-            showToast("تم إفراغ السلة", "warning");
-        }
+    // تنظيف السلة بعد الاسترجاع الناجح
+    sysDB.trash_bin.splice(idx, 1);
+    
+    logAction(`استرجاع [${restoredName}] من سلة المحذوفات.`);
+    saveDB();
+    renderActiveSection();
+    renderTrashContent();
+    showToast(`✅ تم استرجاع ${restoredName}`, "success");
+}
 
         // =====================================================
         // ===== نظام سجل العمليات المُعاد بناؤه بالكامل =====
