@@ -1445,6 +1445,7 @@ function tryLogin() {
         if(!sysDB.trash_bin) sysDB.trash_bin = [];
 
         function addToTrashBin(item, dbKey, sectionName) {
+                if (!sysDB.trash_bin) sysDB.trash_bin = [];
             let trashEntry = {
                 id: Date.now() + Math.random(),
                 item: JSON.parse(JSON.stringify(item)),
