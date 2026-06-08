@@ -3284,7 +3284,7 @@ if (currentTabNum === 1) {
                         // أخذ نسخة من الزبون قبل مسحه عشان التراجع
                         let item = JSON.parse(JSON.stringify(page.debts[idx])); 
                         let amt = Math.floor(item.amount);
-                        
+                        addToTrashBin(item, 'customers', 'ديون العملاء (تسديد تسلسل)');
                         page.collected += amt;
                         page.debts.splice(idx, 1);
                         
