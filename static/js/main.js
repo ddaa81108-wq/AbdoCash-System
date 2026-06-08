@@ -2099,25 +2099,23 @@ function tryLogin() {
             localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
         }
 
-    function deletePurchaseRecord(id) {
+  function deletePurchaseRecord(id) {
     let idx = sysDB.purchases[activeMerchant].findIndex(x => x.id === id);
     if(idx === -1) return;
 
     if(!confirm("هل أنت متأكد من مسح هذه العملية؟")) return;
 
-    // 1. ناخد نسخة من العملية
     let item = JSON.parse(JSON.stringify(sysDB.purchases[activeMerchant][idx]));
     
-    // 2. نلزق عليها الورقة اللي فيها اسم التاجر (الظرف)
+    // تم إضافة الـ index هنا حسب مراجعة شات جي بي تي
     item.__restore = {
         type: 'purchase',
-        merchant: activeMerchant
+        merchant: activeMerchant,
+        index: idx
     };
 
-    // 3. نرميها في السلة
     addToTrashBin(item, 'purchases', 'المشتريات — ' + (activeMerchant === 'bayan' ? 'البيان' : 'سمسم'));
 
-    // 4. نمسحها من الحسابات ونحفظ
     sysDB.purchases[activeMerchant].splice(idx, 1);
     saveDB();
     renderActiveSection();
