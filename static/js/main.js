@@ -1464,36 +1464,50 @@ function tryLogin() {
             renderTrashContent();
         }
 
-        function renderTrashContent() {
-            let content = document.getElementById('trashContent');
-            let trash = sysDB.trash_bin || [];
-            if(!trash.length) {
-                content.innerHTML = `<p style="text-align:center; color:#64748b; padding:20px;">السلة فارغة</p>`;
-                return;
-            }
-            let html = trash.map((entry, idx) => {
-                let item = entry.item;
-                let dateStr = new Date(entry.deletedAt).toLocaleString('ar-EG');
-                let displayName = item.name || 'بند غير معروف';
-                let displayAmount = item.amount !== undefined ? `${Math.floor(item.amount)} د.ل` : (item.lyd !== undefined ? `${Math.floor(item.lyd)} ليبي / ${Math.floor(item.egp)} مصري` : '');
-                return `
-                <div class="trash-item" id="trash-entry-${idx}">
-                    <div class="trash-item-info">
-                        <div class="trash-item-name">🗑️ ${displayName}</div>
-                        <div class="trash-item-meta">القسم: ${entry.sectionName} • ${displayAmount} • ${dateStr}</div>
-                    </div>
-                    <div class="trash-item-actions">
-                        <button class="btn-mini b-add-more" onclick="restoreFromTrash(${idx})" title="استرجاع">↩️ استرجاع</button>
-                        <button class="btn-mini b-full" onclick="permanentDeleteFromTrash(${idx})" title="حذف نهائي">❌ حذف</button>
-                    </div>
-                </div>`;
-            }).join('');
-            
-            if(trash.length > 0) {
-                html += `<div style="margin-top:12px;"><button class="btn-g" style="width:100%; background:#ef4444; color:#fff;" onclick="clearAllTrash()">🗑️ إفراغ السلة بالكامل</button></div>`;
-            }
-            content.innerHTML = html;
-        }
+       function renderTrashContent() {
+    let content = document.getElementById('trashContent');
+    let trash = sysDB.trash_bin || [];
+    
+    if(!trash.length) {
+        content.innerHTML = `<p style="text-align:center; color:#64748b; padding:20px;">السلة فارغة</p>`;
+        return;
+    }
+    
+    let html = trash.map((entry, idx) => {
+        let item = entry.item;
+        let dateStr = new Date(entry.deletedAt).toLocaleString('ar-EG');
+        
+        // 💡 التعديل الشامل لقراءة أي اسم في أي قسم:
+        let displayName = 
+            item?.clientName || 
+            item?.name || 
+            item?.itemData?.name || 
+            item?.transaction?.name || 
+            item?.transaction?.clientName || 
+            item?.description || 
+            item?.title || 
+            'بند غير معروف';
+
+        let displayAmount = item.amount !== undefined ? `${Math.floor(item.amount)} د.ل` : (item.lyd !== undefined ? `${Math.floor(item.lyd)} ليبي / ${Math.floor(item.egp)} مصري` : '');
+        
+        return `
+        <div class="trash-item" id="trash-entry-${idx}">
+            <div class="trash-item-info">
+                <div class="trash-item-name">🗑️ ${displayName}</div>
+                <div class="trash-item-meta">القسم: ${entry.sectionName} • ${displayAmount} • ${dateStr}</div>
+            </div>
+            <div class="trash-item-actions">
+                <button class="btn-mini b-add-more" onclick="restoreFromTrash(${idx})" title="استرجاع">↩️ استرجاع</button>
+                <button class="btn-mini b-full" onclick="permanentDeleteFromTrash(${idx})" title="حذف نهائي">❌ حذف</button>
+            </div>
+        </div>`;
+    }).join('');
+    
+    if(trash.length > 0) {
+        html += `<div style="margin-top:12px;"><button class="btn-g" style="width:100%; background:#ef4444; color:#fff;" onclick="clearAllTrash()">🗑️ إفراغ السلة بالكامل</button></div>`;
+    }
+    content.innerHTML = html;
+}
 
        function restoreFromTrash(idx) {
     let entry = sysDB.trash_bin[idx];
