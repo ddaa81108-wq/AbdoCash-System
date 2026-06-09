@@ -245,7 +245,7 @@ function restoreFromTrash(idx) {
 // =========================================================
 // 5. دالة الحذف النهائي لعنصر واحد
 // =========================================================
-window.permanentDeleteFromTrash = function(idx) {
+function permanentDeleteFromTrash(idx) {
     if(!confirm('هل أنت متأكد من الحذف النهائي؟ لن يمكن استرجاع هذا العنصر بعد الآن.'))
         return;
 
@@ -266,12 +266,12 @@ window.permanentDeleteFromTrash = function(idx) {
     }
 
     showToast('🗑️ تم الحذف نهائياً', 'success');
-};
+}
 
 // =========================================================
 // 6. دالة إفراغ السلة بالكامل
 // =========================================================
-window.clearAllTrash = function() {
+function clearAllTrash() {
     if(!confirm('هل أنت متأكد من إفراغ سلة المحذوفات بالكامل؟'))
         return;
 
@@ -288,10 +288,14 @@ window.clearAllTrash = function() {
     }
 
     showToast('💥 تم إفراغ السلة بالكامل', 'success');
-};
+}
 
+// =========================================================
+// ربط جميع دوال السلة بالواجهة الرئيسية لضمان عمل الأزرار
+// =========================================================
 window.addToTrashBin = addToTrashBin;
 window.openTrashModal = openTrashModal;
 window.renderTrashContent = renderTrashContent;
 window.restoreFromTrash = restoreFromTrash;
-
+window.permanentDeleteFromTrash = permanentDeleteFromTrash;
+window.clearAllTrash = clearAllTrash;
