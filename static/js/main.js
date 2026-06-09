@@ -4522,6 +4522,52 @@ function switchMainApp(appId, btnElement) {
         if(firstItem) firstItem.click();
     }
 }
+// حذف نهائي لعنصر واحد
+window.permanentDeleteFromTrash = function(idx) {
+
+    if(!confirm('هل أنت متأكد من الحذف النهائي؟ لن يمكن استرجاع هذا العنصر بعد الآن.'))
+        return;
+
+    if(!Array.isArray(sysDB.trash_bin))
+        sysDB.trash_bin = [];
+
+    if(idx < 0 || idx >= sysDB.trash_bin.length){
+        showToast('❌ العنصر غير موجود', 'error');
+        return;
+    }
+
+    sysDB.trash_bin.splice(idx, 1);
+
+    saveDB();
+
+    renderTrashContent();
+
+    if(typeof renderActiveSection === 'function'){
+        renderActiveSection();
+    }
+
+    showToast('🗑️ تم الحذف نهائياً', 'success');
+};
+
+
+// إفراغ السلة بالكامل
+window.clearAllTrash = function() {
+
+    if(!confirm('هل أنت متأكد من إفراغ سلة المحذوفات بالكامل؟'))
+        return;
+
+    sysDB.trash_bin = [];
+
+    saveDB();
+
+    renderTrashContent();
+
+    if(typeof renderActiveSection === 'function'){
+        renderActiveSection();
+    }
+
+    showToast('💥 تم إفراغ السلة بالكامل', 'success');
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     // Run after a short delay to ensure DOM and other scripts are ready
