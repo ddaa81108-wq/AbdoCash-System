@@ -2560,12 +2560,35 @@ function tryLogin() {
             showToast(`تم ${treasuryActionType === 'in' ? 'الإيداع' : 'السحب'} بنجاح`, "success");
         }
 
-        function deleteTreasuryLog(id) {
-            if(!confirm("تأكيد حذف حركة الخزينة؟")) return;
-            sysDB.treasury = sysDB.treasury.filter(i => i.id !== id);
-            logAction(`حذف حركة خزينة.`);
-            saveDB(); renderActiveSection();
-        }
+      window.deleteTreasuryLog = function(id) {
+    if(!confirm("هل أنت متأكد من مسح حركة الخزينة؟")) return;
+
+    let idx = sysDB.treasury.findIndex(i => i.id === id);
+    if(idx === -1){
+        showToast("❌ الحركة غير موجودة", "error");
+        return;
+    }
+
+    // نسخ العنصر قبل الحذف
+    let deletedItem = JSON.parse(JSON.stringify(sysDB.treasury[idx]));
+
+    // 💡 التعديل العبقري: حفظ بيانات مكان السطر للاسترجاع
+    deletedItem.__restore = {
+        type: 'treasury',
+        index: idx
+    };
+
+    // نقل للسلة
+    addToTrashBin(deletedItem, 'treasury', 'الخزينة');
+
+    // حذف فعلي
+    sysDB.treasury.splice(idx, 1);
+    
+    logAction(`تم نقل حركة خزينة إلى السلة.`);
+    saveDB();
+    renderActiveSection();
+    showToast("🗑️ تم نقل الحركة إلى السلة", "success");
+};
 
         // ============================================================
         // ===== نظام الخزينة المتقدمة - الإصدار 2025 الكامل =====
