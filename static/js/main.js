@@ -4323,37 +4323,47 @@ window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
 
 // ====== UI Split Logic ======
 function switchMainApp(appId, btnElement) {
-    document.querySelectorAll('.top-nav-tab').forEach(btn => btn.classList.remove('active'));
-    if(btnElement) {
-        btnElement.classList.add('active');
-    } else {
-        let defaultBtn = document.querySelector('.top-nav-tab[data-app="' + appId + '"]');
-        if(defaultBtn) defaultBtn.classList.add('active');
-    }
-    
+
+    document.querySelectorAll('.top-nav-tab')
+        .forEach(btn => btn.classList.remove('active'));
+
+    (
+        btnElement ||
+        document.querySelector(
+            `.top-nav-tab[data-app="${appId}"]`
+        )
+    )?.classList.add('active');
+
     const items = {
-        'clients': ['item_1', 'item_2', 'item_3'],
-        'treasury': ['item_4', 'item_5'],
-        'purchases': ['item_6', 'item_8']
+        clients: ['item_1','item_2','item_3'],
+        treasury: ['item_4','item_5'],
+        purchases: ['item_6','item_8']
     };
-    
-    document.querySelectorAll('.menu-item').forEach(el => el.style.display = 'none');
-    
-    if(items[appId]) {
-        items[appId].forEach(id => {
-            let el = document.getElementById(id);
-            if(el) el.style.display = 'flex';
+
+    document.querySelectorAll('.menu-item')
+        .forEach(el => {
+            el.style.display =
+                items[appId]?.includes(el.id)
+                ? 'flex'
+                : 'none';
         });
-        
-        let firstItemId = items[appId][0];
-        let firstItem = document.getElementById(firstItemId);
-        if(firstItem) firstItem.click();
-    }
+
+    // شيلنا الضغط التلقائي هنا
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    requestAnimationFrame(() => {
-        switchMainApp('clients');
-    });
-});
 
+    switchMainApp('clients');
+
+    requestAnimationFrame(() => {
+
+        let firstItem =
+            document.getElementById('item_1');
+
+        if(firstItem){
+            firstItem.click();
+        }
+
+    });
+
+});
