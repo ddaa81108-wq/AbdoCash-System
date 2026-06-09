@@ -1477,17 +1477,18 @@ function tryLogin() {
         let item = entry.item || {};
         let dateStr = entry.deletedAt ? new Date(entry.deletedAt).toLocaleString('ar-EG') : 'تاريخ غير معروف';
         
-        // 💡 التعديل الشامل اللي هيقرا الخزينة وأي قسم تاني:
+     // 💡 التعديل النهائي لضبط اسم الشخص في الخزينة:
         let displayName = 
+            item?.source ||          // 👈 ده هيجيب اسم الحد اللي حاطط في الخزينة
             item?.clientName || 
             item?.name || 
-            item?.desc ||            // عشان الخزينة
-            item?.note ||            // عشان الخزينة
-            item?.details || 
             item?.itemData?.name || 
             item?.transaction?.name || 
             item?.transaction?.clientName || 
+            item?.desc ||            // 👈 لو مفيش اسم، يجيب البيان
+            item?.note || 
             item?.description || 
+            item?.details || 
             item?.title || 
             'بند غير معروف';
 
