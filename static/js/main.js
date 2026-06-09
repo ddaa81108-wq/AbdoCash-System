@@ -4360,9 +4360,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let firstItem =
             document.getElementById('item_1');
 
-        if(firstItem){
-            firstItem.click();
-        }
+     if(firstItem){
+    console.time('open_section');
+    firstItem.click();
+    console.timeEnd('open_section');
+}
 
     });
 
