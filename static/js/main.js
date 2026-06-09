@@ -1601,6 +1601,26 @@ function tryLogin() {
             showToast("❌ الصفحة الأصلية غير موجودة", "error");
             return;
         }
+  }
+  else if (entry.dbKey === 'treasury' || entry.item?.__restore?.type === 'treasury') {
+        let meta = entry.item.__restore || {};
+        let restoredItem = JSON.parse(JSON.stringify(entry.item));
+        delete restoredItem.__restore;
+
+        // التعديل العبقري لمنع مشاكل الحركات القديمة اللي بدون ID
+        if (!restoredItem.id || !sysDB.treasury.some(x => x.id === restoredItem.id)) {
+            if (Number.isInteger(meta.index) && meta.index >= 0 && meta.index <= sysDB.treasury.length) {
+                sysDB.treasury.splice(meta.index, 0, restoredItem);
+            } else {
+                sysDB.treasury.push(restoredItem);
+            }
+            // التعديل الشامل لاسم الحركة عشان تظهر صح في الإشعارات
+            restoredName = restoredItem.name || restoredItem.note || restoredItem.desc || restoredItem.details || "حركة خزينة";
+            restored = true;
+        } else {
+            showToast("⚠️ الحركة موجودة بالفعل", "warning");
+            return;
+        }
     }
     // 4. الحالة العادية
     else {
