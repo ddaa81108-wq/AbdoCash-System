@@ -4352,9 +4352,6 @@ function switchMainApp(appId, btnElement) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Run after a short delay to ensure DOM and other scripts are ready
-    setTimeout(() => {
-        switchMainApp('clients');
-    }, 500);
+    switchMainApp('clients');
 });
 
