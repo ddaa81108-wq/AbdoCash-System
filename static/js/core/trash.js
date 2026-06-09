@@ -289,3 +289,9 @@ window.clearAllTrash = function() {
 
     showToast('💥 تم إفراغ السلة بالكامل', 'success');
 };
+
+window.addToTrashBin = addToTrashBin;
+window.openTrashModal = openTrashModal;
+window.renderTrashContent = renderTrashContent;
+window.restoreFromTrash = restoreFromTrash;
+
