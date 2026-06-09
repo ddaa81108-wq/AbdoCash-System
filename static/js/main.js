@@ -1464,7 +1464,7 @@ function tryLogin() {
             renderTrashContent();
         }
 
-       function renderTrashContent() {
+   function renderTrashContent() {
     let content = document.getElementById('trashContent');
     let trash = sysDB.trash_bin || [];
     
@@ -1474,13 +1474,16 @@ function tryLogin() {
     }
     
     let html = trash.map((entry, idx) => {
-        let item = entry.item;
-        let dateStr = new Date(entry.deletedAt).toLocaleString('ar-EG');
+        let item = entry.item || {};
+        let dateStr = entry.deletedAt ? new Date(entry.deletedAt).toLocaleString('ar-EG') : 'تاريخ غير معروف';
         
-        // 💡 التعديل الشامل لقراءة أي اسم في أي قسم:
+        // 💡 التعديل الشامل اللي هيقرا الخزينة وأي قسم تاني:
         let displayName = 
             item?.clientName || 
             item?.name || 
+            item?.desc ||            // عشان الخزينة
+            item?.note ||            // عشان الخزينة
+            item?.details || 
             item?.itemData?.name || 
             item?.transaction?.name || 
             item?.transaction?.clientName || 
@@ -1494,7 +1497,7 @@ function tryLogin() {
         <div class="trash-item" id="trash-entry-${idx}">
             <div class="trash-item-info">
                 <div class="trash-item-name">🗑️ ${displayName}</div>
-                <div class="trash-item-meta">القسم: ${entry.sectionName} • ${displayAmount} • ${dateStr}</div>
+                <div class="trash-item-meta">القسم: ${entry.sectionName || 'غير معروف'} • ${displayAmount} • ${dateStr}</div>
             </div>
             <div class="trash-item-actions">
                 <button class="btn-mini b-add-more" onclick="restoreFromTrash(${idx})" title="استرجاع">↩️ استرجاع</button>
