@@ -1,3 +1,6 @@
+// =========================================================
+// 1. دالة إضافة عنصر للسلة
+// =========================================================
 function addToTrashBin(item, dbKey, sectionName) {
     if (!item) return;
 
@@ -20,6 +23,9 @@ function addToTrashBin(item, dbKey, sectionName) {
     saveDB();
 }
 
+// =========================================================
+// 2. دالة فتح نافذة السلة
+// =========================================================
 function openTrashModal() {
     let modal = document.getElementById('trashModal');
 
@@ -33,7 +39,60 @@ function openTrashModal() {
 }
 
 // =========================================================
-// 2. دالة الاسترجاع من السلة (النسخة الماسية النهائية 💎)
+// 3. دالة عرض محتوى السلة
+// =========================================================
+function renderTrashContent() {
+    let content = document.getElementById('trashContent');
+    if(!content) return; 
+    
+    let trash = sysDB.trash_bin || [];
+    
+    if(!trash.length) {
+        content.innerHTML = `<p style="text-align:center; color:#64748b; padding:20px;">السلة فارغة</p>`;
+        return;
+    }
+    
+    let html = trash.map((entry, idx) => {
+        let item = entry.item || {};
+        let dateStr = entry.deletedAt ? new Date(entry.deletedAt).toLocaleString('ar-EG') : 'تاريخ غير معروف';
+        
+        let displayName = 
+            item?.source ||          
+            item?.clientName || 
+            item?.name || 
+            item?.itemData?.name || 
+            item?.transaction?.name || 
+            item?.transaction?.clientName || 
+            item?.desc ||            
+            item?.note || 
+            item?.description || 
+            item?.details || 
+            item?.title || 
+            'بند غير معروف';
+
+        let displayAmount = item.amount !== undefined ? `${Math.floor(item.amount)} د.ل` : (item.lyd !== undefined ? `${Math.floor(item.lyd)} ليبي / ${Math.floor(item.egp)} مصري` : '');
+        
+        return `
+        <div class="trash-item" id="trash-entry-${idx}">
+            <div class="trash-item-info">
+                <div class="trash-item-name">🗑️ ${displayName}</div>
+                <div class="trash-item-meta">القسم: ${entry.sectionName || 'غير معروف'} • ${displayAmount} • ${dateStr}</div>
+            </div>
+            <div class="trash-item-actions">
+                <button class="btn-mini b-add-more" onclick="restoreFromTrash(${idx})" title="استرجاع">↩️ استرجاع</button>
+                <button class="btn-mini b-full" onclick="permanentDeleteFromTrash(${idx})" title="حذف نهائي">❌ حذف</button>
+            </div>
+        </div>`;
+    }).join('');
+    
+    if(trash.length > 0) {
+        html += `<div style="margin-top:12px;"><button class="btn-g" style="width:100%; background:#ef4444; color:#fff;" onclick="clearAllTrash()">🗑️ إفراغ السلة بالكامل</button></div>`;
+    }
+    content.innerHTML = html;
+}
+
+// =========================================================
+// 4. دالة الاسترجاع من السلة (النسخة الماسية النهائية 💎)
 // =========================================================
 function restoreFromTrash(idx) {
     let entry = sysDB.trash_bin[idx];
@@ -134,7 +193,7 @@ function restoreFromTrash(idx) {
         let restoredItem = JSON.parse(JSON.stringify(entry.item));
         delete restoredItem.__restore;
 
-        if (!sysDB.treasury) sysDB.treasury = []; // 👈 التعديل الأول: تأمين الخزينة
+        if (!sysDB.treasury) sysDB.treasury = []; 
 
         if (!restoredItem.id || !sysDB.treasury.some(x => x.id === restoredItem.id)) {
             if (Number.isInteger(meta.index) && meta.index >= 0 && meta.index <= sysDB.treasury.length) {
@@ -154,7 +213,6 @@ function restoreFromTrash(idx) {
         let arr = getDbArr(entry.dbKey);
         if(arr) {
             if (!entry.item.id || !arr.some(x => x.id === entry.item.id)) {
-                // 👈 التعديل الثاني: دمج العنصر في خطوة واحدة
                 setDbArr(entry.dbKey, [...arr, entry.item]);
                 restoredName = entry.item.name || entry.item.note || entry.item.description || "عنصر";
                 restored = true;
@@ -215,7 +273,7 @@ window.clearAllTrash = function() {
     if(!Array.isArray(sysDB.trash_bin))
         sysDB.trash_bin = [];
 
-    sysDB.trash_bin.length = 0; // 👈 التعديل الاحترافي لتفريغ السلة
+    sysDB.trash_bin.length = 0; 
 
     saveDB();
     renderTrashContent();
