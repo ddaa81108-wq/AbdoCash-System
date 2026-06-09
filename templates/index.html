@@ -2,6 +2,7 @@
 
 <html dir="rtl" lang="ar">
 <head>
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>المنظومة المالية المركزية | عبده</title>
@@ -260,4 +261,12 @@
 </div>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script></body>
 <script src="{{ url_for('static', filename='js/core/trash.js') }}"></script>
+ <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js');
+            });
+        }
+    </script>
+</body>
 </html>
