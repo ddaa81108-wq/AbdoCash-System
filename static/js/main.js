@@ -4352,6 +4352,8 @@ function switchMainApp(appId, btnElement) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    switchMainApp('clients');
+    requestAnimationFrame(() => {
+        switchMainApp('clients');
+    });
 });
 
