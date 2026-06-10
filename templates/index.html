@@ -245,11 +245,16 @@
 </div>
 </div>
 <div class="main-content">
-<div id="dynamicSectionContent">
-    <div style="padding:20px;text-align:center;color:gray;">
-        جاري التحميل...
+
+    <div id="dynamicSectionContent">
+        <div style="padding:20px;text-align:center;color:gray;">
+            جاري التحميل...
+        </div>
     </div>
-</div>
+
+</div> <!-- main-content -->
+
+</div> <!-- dashboard-wrapper -->
 <!-- ===== لوحة تحكم الصلاحيات والمستخدمين (للمدير فقط) ===== -->
 <div class="admin-panel-overlay" id="adminPanelOverlay">
 <div class="admin-panel-box">
@@ -293,8 +298,8 @@ if ('serviceWorker' in navigator) {
             container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
             // 3. يسحب القسم الجديد
-            const res = await fetch('/section/customers');
-            if (!res.ok) throw new Error('Load failed');
+       const res = await fetch('/section/customers', { cache: 'no-store' });    
+        if (!res.ok) throw new Error('Load failed');
 
             // 4. يعرض القسم
             container.innerHTML = await res.text();
@@ -309,9 +314,13 @@ if ('serviceWorker' in navigator) {
     }
 
     // السطر ده عشان يشغل قسم العملاء تلقائياً أول ما تفتح المنظومة
-    window.addEventListener('load', () => {
+   window.addEventListener('load', () => {
+    const dashboard = document.getElementById('dashboardSection');
+    // لو لوحة العمل ظاهرة (يعني سجلت دخول بنجاح)، حمل قسم العملاء
+    if (dashboard && dashboard.style.display !== 'none') {
         loadCustomersSection();
-    });
+    }
+});
 </script>
 </body>
 </html>
