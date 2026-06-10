@@ -46,7 +46,12 @@ def save_data():
         db_system_data.update_one({}, {"$set": incoming_data}, upsert=True)
         return jsonify({"status": "success", "message": "تم الحفظ في MongoDB بنجاح"})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+     return jsonify({"status": "error", "message": str(e)})
+# --- المسار الجديد الخاص بقسم ديون العملاء ---
+@app.route('/section/customers', methods=['GET'])
+def customers_section():
+    return render_template('sections/customers.html')
+# ---------------------------------------------
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
