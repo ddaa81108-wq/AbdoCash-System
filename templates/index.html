@@ -221,13 +221,15 @@
 <div class="sidebar">
 <h2>المنظومة المالية | عبده</h2>
 <ul class="menu-list">
-<li class="menu-item active" id="item_1" onclick="switchTab(1)">👥 1 ديون العملاء</li>
-<li class="menu-item" id="item_2" onclick="switchTab(2)">🏢 2 حسابات الشركات</li>
-<li class="menu-item" id="item_3" onclick="switchTab(3)">📦 3 كبار العملاء (جملة)</li>
-<li class="menu-item" id="item_4" onclick="switchTab(4)">🔒 4 الودائع والأمانات</li>
-<li class="menu-item" id="item_5" onclick="switchTab(5)">💰 5 الخزينة المتقدمة</li>
-<li class="menu-item" id="item_6" onclick="switchTab(6)">💸 6 إدارة المشتريات</li>
-<li class="menu-item" id="item_8" onclick="switchTab(8)">👩‍💼 8 قسم فاطمة</li>
+<li class="menu-item" id="item_1" onclick="loadCustomersSection()" style="cursor: pointer;">
+    👥 1 ديون العملاء
+</li>    
+    <li class="menu-item" id="item_2" onclick="switchTab(2)">🏢 2 حسابات الشركات</li>
+    <li class="menu-item" id="item_3" onclick="switchTab(3)">📦 3 كبار العملاء (جملة)</li>
+    <li class="menu-item" id="item_4" onclick="switchTab(4)">🔒 4 الودائع والأمانات</li>
+    <li class="menu-item" id="item_5" onclick="switchTab(5)">💰 5 الخزينة المتقدمة</li>
+    <li class="menu-item" id="item_6" onclick="switchTab(6)">💸 6 إدارة المشتريات</li>
+    <li class="menu-item" id="item_8" onclick="switchTab(8)">👩‍💼 8 قسم فاطمة</li>
 </ul>
 <div class="sidebar-divider"></div>
 <div style="margin-top: auto;">
@@ -243,8 +245,10 @@
 </div>
 </div>
 <div class="main-content">
-<div id="dynamicSectionContent"></div>
-</div>
+<div id="dynamicSectionContent">
+    <div style="padding:20px;text-align:center;color:gray;">
+        جاري التحميل...
+    </div>
 </div>
 <!-- ===== لوحة تحكم الصلاحيات والمستخدمين (للمدير فقط) ===== -->
 <div class="admin-panel-overlay" id="adminPanelOverlay">
@@ -277,6 +281,37 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
+<script>
+    async function loadCustomersSection() {
+        try {
+            // 1. يطفي كل الزراير وينور زرار العملاء بس
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            document.getElementById('item_1')?.classList.add('active');
 
+            // 2. يظهر رسالة تحميل مؤقتة
+            const container = document.getElementById('dynamicSectionContent');
+            container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
+
+            // 3. يسحب القسم الجديد
+            const res = await fetch('/section/customers');
+            if (!res.ok) throw new Error('Load failed');
+
+            // 4. يعرض القسم
+            container.innerHTML = await res.text();
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('dynamicSectionContent').innerHTML = `
+                <div style="padding:20px;color:#ef4444;text-align:center;">
+                    فشل تحميل قسم العملاء ❌
+                </div>`;
+        }
+    }
+
+    // السطر ده عشان يشغل قسم العملاء تلقائياً أول ما تفتح المنظومة
+    window.addEventListener('load', () => {
+        loadCustomersSection();
+    });
+</script>
 </body>
 </html>
