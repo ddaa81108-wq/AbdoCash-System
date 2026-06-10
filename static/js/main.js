@@ -1113,8 +1113,7 @@ function tryLogin() {
             } else { showToast("لم يتم التعرف على أي بيانات جديدة.", "error"); }
         }
 
-        let calcTargetInputId = '';
-        let currentCalcMode = 'quick';
+       
 
 
         window.onload = function() {
