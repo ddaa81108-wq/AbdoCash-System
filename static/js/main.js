@@ -3263,34 +3263,38 @@ if (currentTabNum === 1) {
         }, 100);
     };
 
-    // --- 5. دالة تقفيل اليوم ---
+// --- 5. دالة تقفيل اليوم (بالمعادلة المحاسبية الدقيقة) ---
     window.closeCustomerDay = function() {
         if(!confirm('هل أنت متأكد من إقفال اليوم وترحيل الباقي ليوم جديد؟')) return;
         
         let pages = sysDB.customer_pages;
         let currentDay = pages[activeCustomerPageIndex];
+        
+        // المعادلة المحاسبية الصح (المرحل + الشغل الجديد - التحصيل)
         let rem = (currentDay.old_debt || 0) + (currentDay.new_work || 0) - (currentDay.collected || 0);
         
         if(rem < 0) rem = 0; 
 
-        let newDebts = JSON.parse(JSON.stringify(currentDay.debts));
+        let newDebts = JSON.parse(JSON.stringify(currentDay.debts || []));
         
-        let todayStr = new Date().toLocaleDateString('ar-EG');
+        // إضافة الوقت مع التاريخ (عشان ميتكررش اسم اليوم)
+        let todayStr = new Date().toLocaleString('ar-EG');
+        
         pages.push({ 
             id: Date.now(), 
             label: 'اليوم ' + (pages.length + 1) + ' — ' + todayStr, 
             created_at: Date.now(), 
-            old_debt: rem, 
-            new_work: 0, 
-            collected: 0, 
+            old_debt: rem,     // هنا هينزل الباقي من امبارح
+            new_work: 0,       // تصفير الشغل الجديد لليوم الجديد
+            collected: 0,      // تصفير التحصيل لليوم الجديد
             debts: newDebts 
         });
 
         activeCustomerPageIndex = pages.length - 1;
-        logAction(`تم تقفيل اليوم وترحيل أرصدة العملاء بقيمة ${rem} د.ل`, 'ديون العملاء');
+        logAction(`تم تقفيل اليوم وترحيل أرصدة العملاء بقيمة ${rem}`, 'ديون العملاء');
         saveDB(); 
         renderActiveSection();
-        showToast('تم فتح يوم جديد وترحيل الأرصدة بنجاح!', 'success');
+        showToast(`تم الترحيل — الرصيد السابق ${rem}`, 'success');
     };
 
     // ======== الجزء الخاص بـ MVC والفلترة ========
