@@ -1,5 +1,12 @@
 const API_BASE = 'https://abdocash-system.onrender.com';
 
+let sysDB = JSON.parse(localStorage.getItem('sysDB')) || {
+    customer_pages: [],   // الأيام الحالية (موجودة عندك)
+    customers: [],        // 🌟 كشف الحساب الأبدي للعملاء (الجديد)
+    daily_archive: [],    // 🌟 أرشيف الإحصائيات (الجديد)
+    // سيب أي أقسام تانية بتاعتك هنا زي ما هي (treasury, companies, إلخ)
+};
+
         // ==========================================
         // ===== نظام الدخول بكلمة المرور =====
         // ==========================================
@@ -3083,313 +3090,217 @@ function tryLogin() {
             autoCloseDay(); let activeFocus = document.activeElement.id;
             const container = document.getElementById('dynamicSectionContent');
 if (currentTabNum === 1) {
-    // 1. التأكد من تهيئة القسم وفهرس اليوم الحالي
-    if (typeof activeCustomerPageIndex === 'undefined' || activeCustomerPageIndex === null) {
-        activeCustomerPageIndex = 0;
-    }
+    if (typeof activeCustomerPageIndex === 'undefined' || activeCustomerPageIndex === null) activeCustomerPageIndex = 0;
     
     if (!sysDB.customer_pages || sysDB.customer_pages.length === 0) {
-        sysDB.customer_pages = [{ 
-            id: 1, 
-            label: 'اليوم الأول — ' + new Date().toLocaleDateString('ar-EG'), 
-            created_at: Date.now(), 
-            old_debt: 0,
-            new_work: 0,
-            collected: 0,
-            debts: [] 
-        }];
-        activeCustomerPageIndex = 0;
-        saveDB();
+        sysDB.customer_pages = [{ id: 1, label: 'اليوم الأول — ' + new Date().toLocaleDateString('ar-EG'), created_at: Date.now(), old_debt: 0, new_work: 0, collected: 0, debts: [] }];
+        activeCustomerPageIndex = 0; saveDB();
     }
+    if (!sysDB.customers) sysDB.customers = [];
 
-    if (activeCustomerPageIndex >= sysDB.customer_pages.length) {
-        activeCustomerPageIndex = sysDB.customer_pages.length - 1;
-    }
+    if (activeCustomerPageIndex >= sysDB.customer_pages.length) activeCustomerPageIndex = sysDB.customer_pages.length - 1;
 
     let activePage = sysDB.customer_pages[activeCustomerPageIndex];
-    
-    // حارس الأرشيف: تحديد ما إذا كان اليوم المفتوح هو اليوم الأخير (يوم التشغيل الحقيقي)
     let isLatestDay = activeCustomerPageIndex === (sysDB.customer_pages.length - 1);
 
-    // حساب الرصيد القديم بشكل آمن لو لم يكن معرّفاً
-    if (activePage.old_debt === undefined) {
-        let currentTotal = (activePage.debts || []).reduce((sum, item) => sum + Math.floor(item.amount || 0), 0);
+    if (activePage.old_debt === undefined || activePage.old_debt === null) {
+        let currentTotal = (activePage.debts || []).reduce((sum, item) => sum + Math.floor(Number(item.amount) || 0), 0);
         activePage.old_debt = currentTotal;
-        activePage.new_work = 0;
-        activePage.collected = 0;
         saveDB();
     }
 
-    let totalOld = activePage.old_debt || 0;
-    let totalNew = activePage.new_work || 0;
-    let totalCollected = activePage.collected || 0;
+    let totalOld = Math.floor(Number(activePage.old_debt) || 0);
+    let totalNew = Math.floor(Number(activePage.new_work) || 0);
+    let totalCollected = Math.floor(Number(activePage.collected) || 0);
     let totalRem = totalOld + totalNew - totalCollected;
 
-    // --- نظام التراجع (شبكة الأمان 10 ثواني) ---
-    window.deletedCustStore = window.deletedCustStore || {};
+    // --- 🌟 الدفتر الصامت: تسجيل كل حركة في كشف الحساب ---
+    window.logCustomerTransaction = function(customerName, type, amount, note) {
+        if (!sysDB.customers) sysDB.customers = [];
+        let cleanName = (customerName || '').trim().toLowerCase();
+        let customer = sysDB.customers.find(c => (c.name || '').trim().toLowerCase() === cleanName);
 
+        if (!customer) {
+            customer = { id: Date.now(), name: customerName.trim(), currentDebt: 0, status: 'active', transactions: [] };
+            sysDB.customers.push(customer);
+        }
+
+        let cleanAmount = Math.floor(Number(amount) || 0);
+        customer.transactions.push({ id: Date.now(), date: new Date().toLocaleString('ar-EG'), type: type, amount: cleanAmount, note: note || '' });
+
+        if (type === 'إضافة') customer.currentDebt += cleanAmount;
+        else { customer.currentDebt -= cleanAmount; if (customer.currentDebt < 0) customer.currentDebt = 0; }
+
+        customer.status = (customer.currentDebt === 0) ? 'archived' : 'active';
+        saveDB();
+    };
+
+    // --- 🌟 عرض كشف الحساب الأبدي للعميل ---
+    window.showCustomerLedger = function(customerName) {
+        let cleanName = (customerName || '').trim().toLowerCase();
+        let customer = (sysDB.customers || []).find(c => (c.name || '').trim().toLowerCase() === cleanName);
+        
+        document.getElementById('ledgerCustomerName').innerText = `👤 ${customerName}`;
+        document.getElementById('ledgerCustomerDebt').innerText = customer ? customer.currentDebt : "0";
+        
+        let tbody = document.getElementById('ledgerTransactionsBody');
+        if (!customer || !customer.transactions || customer.transactions.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="padding:15px; color:var(--text-muted);">لا توجد حركات مسجلة لهذا العميل.</td></tr>';
+        } else {
+            // عرض الحركات من الأحدث للأقدم
+            let rows = [...customer.transactions].reverse().map(t => {
+                let color = t.type === 'إضافة' ? 'var(--danger)' : 'var(--success)';
+                return `<tr>
+                    <td style="padding:8px; border-bottom:1px solid rgba(56,189,248,0.1); font-size:12px;">${t.date}</td>
+                    <td style="padding:8px; border-bottom:1px solid rgba(56,189,248,0.1); font-weight:bold; color:${color};">${t.type}</td>
+                    <td style="padding:8px; border-bottom:1px solid rgba(56,189,248,0.1); font-weight:900; font-size:15px;">${t.amount}</td>
+                    <td style="padding:8px; border-bottom:1px solid rgba(56,189,248,0.1); font-size:12px; color:var(--text-muted);">${t.note}</td>
+                </tr>`;
+            }).join('');
+            tbody.innerHTML = rows;
+        }
+        document.getElementById('customerLedgerModal').style.display = 'flex';
+    };
+
+    // --- التراجع عن التسديد ---
+    window.deletedCustStore = window.deletedCustStore || {};
     window.undoCustPayment = function(toastId) {
         if (!isLatestDay) return; 
         let data = window.deletedCustStore[toastId];
         if (!data) return;
         let page = sysDB.customer_pages[data.pageIdx];
         if (page) {
-            // حماية التراجع من التكرار عند الضغط المتعدد بسرعة
-            if (!page.debts.some(x => x.id === data.item.id)) {
-                page.debts.push(data.item);
-            }
-            page.collected -= data.amt;
-            if (page.collected < 0) page.collected = 0; 
-            saveDB();
-            renderActiveSection();
-            showToast(`تم التراجع ورجوع حساب [${data.item.name}]`, "success");
+            if (!page.debts.some(x => x.id === data.item.id)) page.debts.push(data.item);
+            page.collected -= data.amt; if (page.collected < 0) page.collected = 0; 
+            window.logCustomerTransaction(data.item.name, 'إضافة', data.amt, 'تراجع عن سداد');
+            saveDB(); renderActiveSection();
         }
         let t = document.getElementById(`toast-${toastId}`);
         if (t) { t.style.animation = 'slideOut 0.4s forwards'; setTimeout(() => t.remove(), 400); }
         delete window.deletedCustStore[toastId];
     };
 
-    // --- دالة الدفع الكامل والمسح ---
+    // --- الدفع الكامل ---
     window.payAndRemoveCustomerDebt = function(id) {
-        if (!isLatestDay) { showToast("لا يمكن التعديل في الأرشيف القديم!", "error"); return; }
-        
+        if (!isLatestDay) { showToast("لا يمكن التعديل في الأرشيف!", "error"); return; }
         let page = sysDB.customer_pages[activeCustomerPageIndex];
         let idx = page.debts.findIndex(d => d.id === id);
         if (idx !== -1) {
             let item = JSON.parse(JSON.stringify(page.debts[idx])); 
-            let amt = Math.floor(item.amount || 0); 
-            addToTrashBin(item, 'customers', 'ديون العملاء (تسديد تسلسل)');
-            page.collected += amt;
-            page.debts.splice(idx, 1);
-            
-            saveDB(); 
-            renderActiveSection();
+            let amt = Math.floor(Number(item.amount) || 0); 
+            addToTrashBin(item, 'customers', 'ديون العملاء (تسديد)');
+            page.collected += amt; page.debts.splice(idx, 1);
+            window.logCustomerTransaction(item.name, 'تسديد كامل', amt, 'تصفية الحساب');
+            saveDB(); renderActiveSection();
 
-            let toastId = Date.now();
-            window.deletedCustStore[toastId] = { item: item, pageIdx: activeCustomerPageIndex, amt: amt };
-            
+            let toastId = Date.now(); window.deletedCustStore[toastId] = { item, pageIdx: activeCustomerPageIndex, amt };
             const container = document.getElementById('toast-container');
             if (container) {
-                const toast = document.createElement('div');
-                toast.className = `toast warning`;
-                toast.id = `toast-${toastId}`;
+                const toast = document.createElement('div'); toast.className = `toast warning`; toast.id = `toast-${toastId}`;
                 toast.style.display = 'flex'; toast.style.justifyContent = 'space-between'; toast.style.width = '320px'; toast.style.borderLeft = '4px solid var(--warning)';
                 toast.innerHTML = `<span style="font-size:13px; font-weight:900; color:#fff;">✔️ سداد كامل: ${item.name}</span><button style="background:var(--warning); color:#000; border:none; padding:6px 15px; border-radius:4px; font-weight:900; cursor:pointer;" onclick="undoCustPayment(${toastId})">تراجع ↩️</button>`;
                 container.appendChild(toast);
             }
-            
-            setTimeout(() => {
-                let t = document.getElementById(`toast-${toastId}`);
-                if (t) { 
-                    t.style.animation = 'slideOut 0.4s forwards'; 
-                    setTimeout(() => { t.remove(); delete window.deletedCustStore[toastId]; }, 400); 
-                    logAction(`تسديد ومسح حساب [${item.name}] بقيمة ${amt}`, 'ديون العملاء');
-                }
-            }, 10000);
+            setTimeout(() => { let t = document.getElementById(`toast-${toastId}`); if (t) { t.style.animation = 'slideOut 0.4s forwards'; setTimeout(() => { t.remove(); delete window.deletedCustStore[toastId]; }, 400); } }, 10000);
         }
     };
 
-    // --- دوال التسديد الجزئي ---
-    window.showCustPartPay = function(id) {
-        if (!isLatestDay) return;
-        let btn = document.getElementById('cust-btns-' + id);
-        let box = document.getElementById('cust-inline-' + id);
-        if (btn) btn.style.display = 'none';
-        if (box) box.style.display = 'flex';
-        setTimeout(() => {
-            let inp = document.getElementById('cust-part-input-' + id);
-            if (inp) inp.focus();
-        }, 100);
-    };
-    
-    window.hideCustPartPay = function(id) {
-        let btn = document.getElementById('cust-btns-' + id);
-        let box = document.getElementById('cust-inline-' + id);
-        if (btn) btn.style.display = 'flex';
-        if (box) box.style.display = 'none';
-        let inp = document.getElementById('cust-part-input-' + id);
-        if (inp) inp.value = '';
-    };
-
+    // --- التسديد الجزئي ---
+    window.showCustPartPay = function(id) { if (!isLatestDay) return; document.getElementById('cust-btns-'+id).style.display='none'; document.getElementById('cust-inline-'+id).style.display='flex'; setTimeout(() => document.getElementById('cust-part-input-'+id).focus(), 100); };
+    window.hideCustPartPay = function(id) { document.getElementById('cust-btns-'+id).style.display='flex'; document.getElementById('cust-inline-'+id).style.display='none'; document.getElementById('cust-part-input-'+id).value=''; };
     window.submitCustPartPay = function(id) {
-        if (!isLatestDay) { showToast("لا يمكن التعديل في الأرشيف القديم!", "error"); return; }
+        if (!isLatestDay) { showToast("لا يمكن التعديل في الأرشيف!", "error"); return; }
+        let input = document.getElementById('cust-part-input-' + id); if (!input) return;
+        let val = Math.floor(parseFloat(input.value)); if (isNaN(val) || val <= 0) return;
+        let page = sysDB.customer_pages[activeCustomerPageIndex]; let item = page.debts.find(d => d.id === id); if (!item) return;
+        if (val > Math.floor(Number(item.amount) || 0)) { showToast('المبلغ أكبر من الدين!', 'error'); return; }
 
-        let input = document.getElementById('cust-part-input-' + id);
-        if (!input) return;
-        let val = Math.floor(parseFloat(input.value));
-        if (isNaN(val) || val <= 0) return;
-
-        let page = sysDB.customer_pages[activeCustomerPageIndex];
-        let item = page.debts.find(d => d.id === id);
-        if (!item) return;
-
-        if (val > Math.floor(item.amount || 0)) {
-            showToast('المبلغ المدخل أكبر من الدين الفعلي!', 'error');
-            return;
-        }
-
-        item.amount -= val;
-        page.collected += val; 
-        
-        logAction(`تسديد جزئي (${val}) من حساب [${item.name}] — المتبقي: ${Math.floor(item.amount)}`, 'ديون العملاء');
-        
-        if (item.amount <= 0) {
-            page.debts = page.debts.filter(d => d.id !== id);
-            showToast(`تم تصفية حساب ${item.name} بالكامل`, 'success');
-        } else {
-            showToast(`تم تسديد ${val} بنجاح`, 'success');
-        }
-        
-        saveDB();
-        renderActiveSection();
+        item.amount -= val; page.collected += val; 
+        window.logCustomerTransaction(item.name, 'تسديد جزئي', val, 'دفعة مالية');
+        if (item.amount <= 0) { page.debts = page.debts.filter(d => d.id !== id); showToast(`تم تصفية حساب ${item.name}`, 'success'); } else { showToast(`تم تسديد ${val} بنجاح`, 'success'); }
+        saveDB(); renderActiveSection();
     };
 
-    // --- إضافة زبون جديد سريع ---
+    // --- إضافة زبون ---
     window.addFastCustomerDebt = function() {
-        if (!isLatestDay) { showToast("لا يمكن إضافة بيانات في الأرشيف القديم!", "error"); return; }
-
-        let nameInput = document.getElementById('addNameInput');
-        let amtInput = document.getElementById('addAmountInput');
-        let dueDateInput = document.getElementById('addDueDateInput'); 
-        
+        if (!isLatestDay) { showToast("لا يمكن إضافة بيانات في الأرشيف!", "error"); return; }
+        let nameInput = document.getElementById('addNameInput'); let amtInput = document.getElementById('addAmountInput'); let dueDateInput = document.getElementById('addDueDateInput'); 
         if (!nameInput || !amtInput) return;
-        let name = nameInput.value.trim();
-        let amt = Math.floor(parseFloat(amtInput.value));
-        let dueDateVal = dueDateInput ? dueDateInput.value : null;
+        let name = nameInput.value.trim(); let amt = Math.floor(parseFloat(amtInput.value)); let dueDateVal = dueDateInput ? dueDateInput.value : null;
 
-        if (!name || isNaN(amt) || amt <= 0) { 
-            showToast("برجاء إدخال اسم ومبلغ صحيح", "error"); 
-            return; 
-        }
-        
+        if (!name || isNaN(amt) || amt <= 0) { showToast("برجاء إدخال اسم ومبلغ صحيح", "error"); return; }
         let page = sysDB.customer_pages[activeCustomerPageIndex];
-        
-        // حماية الاسم من التكرار والمسافات الزائدة وحالة الأحرف
-        if (page.debts.some(item => (item.name || '').trim().toLowerCase() === name.toLowerCase())) { 
-            showToast(`⚠️ الاسم [${name}] مسجل مسبقاً! قم بعمل تسديد جزئي بدلاً من ذلك.`, "error"); 
-            return; 
-        }
+        if (page.debts.some(item => (item.name || '').trim().toLowerCase() === name.toLowerCase())) { showToast(`⚠️ الاسم مسجل مسبقاً!`, "error"); return; }
 
         page.debts.unshift({ id: Date.now(), name: name, amount: amt, dueDate: dueDateVal, lastPaymentDate: Date.now() });
         page.new_work += amt; 
-        
-        logAction(`إضافة حساب جديد [${name}] بقيمة ${amt}`, 'ديون العملاء');
-        saveDB(); 
-        renderActiveSection();
-        
-        setTimeout(() => {
-            nameInput.value = '';
-            if (amtInput) amtInput.value = '';
-            if (dueDateInput) dueDateInput.value = '';
-            nameInput.focus();
-        }, 100);
+        window.logCustomerTransaction(name, 'إضافة', amt, 'دين جديد');
+        saveDB(); renderActiveSection();
+        setTimeout(() => { nameInput.value = ''; if (amtInput) amtInput.value = ''; if (dueDateInput) dueDateInput.value = ''; nameInput.focus(); }, 100);
     };
 
-    // --- دالة تقفيل اليوم بترحيل الحسابات الدقيق ---
+    // --- تقفيل اليوم بالمعادلة المحاسبية ---
     window.closeCustomerDay = function() {
         if (!isLatestDay) { showToast("لا يمكن تقفيل يوم مؤرشف!", "error"); return; }
         if (!confirm('هل أنت متأكد من إقفال اليوم وترحيل الباقي ليوم جديد؟')) return;
         
-        let pages = sysDB.customer_pages;
-        let currentDay = pages[activeCustomerPageIndex];
-        
-        // المعادلة المحاسبية المعتمدة (القديم + الجديد - المحصل)
-        let rem = (currentDay.old_debt || 0) + (currentDay.new_work || 0) - (currentDay.collected || 0);
+        let pages = sysDB.customer_pages; let currentDay = pages[activeCustomerPageIndex];
+        let rem = (Math.floor(Number(currentDay.old_debt) || 0)) + (Math.floor(Number(currentDay.new_work) || 0)) - (Math.floor(Number(currentDay.collected) || 0));
         if (rem < 0) rem = 0; 
 
         let newDebts = JSON.parse(JSON.stringify(currentDay.debts || []));
-        
-        // استخدام الوقت لمنع تطابق الأسماء في نفس التاريخ المحاسبي
         let todayStr = new Date().toLocaleString('ar-EG');
-        pages.push({ 
-            id: Date.now(), 
-            label: 'اليوم ' + (pages.length + 1) + ' — ' + todayStr, 
-            created_at: Date.now(), 
-            old_debt: rem, 
-            new_work: 0, 
-            collected: 0, 
-            debts: newDebts 
-        });
-
-        activeCustomerPageIndex = pages.length - 1;
-        logAction(`تم تقفيل اليوم وترحيل أرصدة العملاء بقيمة ${rem}`, 'ديون العملاء');
-        saveDB(); 
-        renderActiveSection();
-        showToast(`تم الترحيل — الرصيد السابق ${rem}`, 'success');
+        pages.push({ id: Date.now(), label: 'اليوم ' + (pages.length + 1) + ' — ' + todayStr, created_at: Date.now(), old_debt: rem, new_work: 0, collected: 0, debts: newDebts });
+        activeCustomerPageIndex = pages.length - 1; saveDB(); renderActiveSection(); showToast(`تم الترحيل — الرصيد السابق ${rem}`, 'success');
     };
 
-    // ======== إدارة العرض (View) والربط مع الأرشيف والفلترة ========
-
+    // ======== عرض الواجهة ========
     let dayTabsHtml = sysDB.customer_pages.map((p, i) => {
         let isActive = i === activeCustomerPageIndex;
         return `<button onclick="activeCustomerPageIndex=${i}; renderActiveSection()" style="padding:5px 12px;border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;background:${isActive?"var(--primary)":"transparent"};color:${isActive?"#000":"var(--primary)"};border:1px solid var(--primary);white-space:nowrap;flex-shrink:0;">${p.label || 'اليوم '+(i+1)}</button>`;
     }).join("");
 
-    let searchInputEl = document.getElementById('searchInput');
-    let searchQuery = searchInputEl ? searchInputEl.value.toLowerCase() : '';
-    
+    let searchQuery = document.getElementById('searchInput') ? document.getElementById('searchInput').value.toLowerCase() : '';
     let filteredList = (activePage.debts || []).filter(item => (item.name || '').toLowerCase().includes(searchQuery));
     let third = Math.ceil(filteredList.length / 3);
 
     let renderRows = (list, offset) => list.map((item, index) => {
-        let actionsHtml = '';
-        if (isLatestDay) {
-            actionsHtml = `
-                <div id="cust-btns-${item.id}" style="display:flex; gap:4px; justify-content:center;">
-                    <button class="btn-mini b-part" style="padding:6px 8px; font-size:11px; border-radius:4px;" onclick="showCustPartPay(${item.id})" title="دفع جزء من المبلغ">➖ جزئي</button>
-                    <button class="btn-mini b-add-more" style="padding:6px 8px; font-size:11px; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="payAndRemoveCustomerDebt(${item.id})" title="دفع المبلغ بالكامل ومسح الحساب">✔ كامل</button>
-                </div>
-                <div id="cust-inline-${item.id}" style="display:none; gap:4px; justify-content:center; align-items:center;">
-                    <input type="number" id="cust-part-input-${item.id}" class="glass-input" style="width:65px; height:26px; padding:0 4px; text-align:center; font-size:13px; font-weight:900; color:#000; background:#fff;" placeholder="المبلغ" onkeydown="if(event.key==='Enter') submitCustPartPay(${item.id})">
-                    <button class="btn-mini b-add-more" style="padding:4px 8px;" onclick="submitCustPartPay(${item.id})">✔</button>
-                    <button class="btn-mini b-full" style="padding:4px 8px;" onclick="hideCustPartPay(${item.id})">❌</button>
-                </div>
-            `;
-        } else {
-            actionsHtml = `<span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:11px; color:var(--text-muted); font-weight:bold;">🔒 أرشيف</span>`;
-        }
+        let actionsHtml = isLatestDay ? `
+            <div id="cust-btns-${item.id}" style="display:flex; gap:4px; justify-content:center;">
+                <button class="btn-mini b-part" style="padding:6px 8px; font-size:11px; border-radius:4px;" onclick="showCustPartPay(${item.id})">➖ جزئي</button>
+                <button class="btn-mini b-add-more" style="padding:6px 8px; font-size:11px; border-radius:4px;" onclick="payAndRemoveCustomerDebt(${item.id})">✔ كامل</button>
+            </div>
+            <div id="cust-inline-${item.id}" style="display:none; gap:4px; justify-content:center; align-items:center;">
+                <input type="number" id="cust-part-input-${item.id}" class="glass-input" style="width:65px; height:26px; padding:0 4px; text-align:center; font-size:13px; font-weight:900; color:#000; background:#fff;" placeholder="المبلغ" onkeydown="if(event.key==='Enter') submitCustPartPay(${item.id})">
+                <button class="btn-mini b-add-more" style="padding:4px 8px;" onclick="submitCustPartPay(${item.id})">✔</button>
+                <button class="btn-mini b-full" style="padding:4px 8px;" onclick="hideCustPartPay(${item.id})">❌</button>
+            </div>` : `<span style="background:rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:11px; color:var(--text-muted); font-weight:bold;">🔒 أرشيف</span>`;
 
         return `<tr>
             <td class="serial-cell">${offset + index + 1}</td>
-            <td><b style="font-size:14px;">${item.name}</b></td>
-            <td style="color:var(--danger); font-weight:900; font-size:16px;">${Math.floor(item.amount || 0)}</td>
-            <td style="width:140px; text-align:center;">
-                ${actionsHtml}
-            </td>
+            <td><b style="font-size:14px; cursor:pointer; color:var(--primary); text-decoration:underline;" onclick="showCustomerLedger('${item.name}')" title="عرض كشف الحساب">${item.name}</b></td>
+            <td style="color:var(--danger); font-weight:900; font-size:16px;">${Math.floor(Number(item.amount) || 0)}</td>
+            <td style="width:140px; text-align:center;">${actionsHtml}</td>
         </tr>`;
     }).join('');
 
     let tableHeader = `<thead><tr><th class="serial-cell" style="width:40px;">ت</th><th>الاسم</th><th>المبلغ</th><th>إجراء التحصيل</th></tr></thead>`;
 
-    let tabsContainer = document.getElementById('customer-day-tabs');
-    if (tabsContainer) tabsContainer.innerHTML = dayTabsHtml;
-
+    let tabsContainer = document.getElementById('customer-day-tabs'); if (tabsContainer) tabsContainer.innerHTML = dayTabsHtml;
     if (document.getElementById('cust-total-old')) document.getElementById('cust-total-old').innerText = totalOld;
     if (document.getElementById('cust-total-new')) document.getElementById('cust-total-new').innerText = totalNew;
     if (document.getElementById('cust-total-col')) document.getElementById('cust-total-col').innerText = totalCollected;
     if (document.getElementById('cust-total-rem')) document.getElementById('cust-total-rem').innerText = totalRem;
 
-    // التحكم في ظهور وإخفاء عناصر الإدخال والتقفيل بناءً على حالة اليوم
-    let closeBtn = document.querySelector('button[onclick="closeCustomerDay()"]');
-    if (closeBtn) closeBtn.style.display = isLatestDay ? 'inline-block' : 'none';
-
-    let addNameInputEl = document.getElementById('addNameInput');
-    if (addNameInputEl && addNameInputEl.parentElement) {
-        addNameInputEl.parentElement.style.display = isLatestDay ? 'flex' : 'none';
-    }
+    let closeBtn = document.querySelector('button[onclick="closeCustomerDay()"]'); if (closeBtn) closeBtn.style.display = isLatestDay ? 'inline-block' : 'none';
+    let addNameInputEl = document.getElementById('addNameInput'); if (addNameInputEl && addNameInputEl.parentElement) addNameInputEl.parentElement.style.display = isLatestDay ? 'flex' : 'none';
 
     let tablesContainer = document.getElementById('customers-tables-container');
     if (tablesContainer) {
         tablesContainer.innerHTML = `
-            <div class="table-container" style="border:1px solid var(--primary);">
-                <table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table>
-            </div>
-            <div class="table-container" style="border:1px solid var(--primary);">
-                <table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table>
-            </div>
-            <div class="table-container" style="border:1px solid var(--primary);">
-                <table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table>
-            </div>
+            <div class="table-container" style="border:1px solid var(--primary);"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(0, third), 0) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table></div>
+            <div class="table-container" style="border:1px solid var(--primary);"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third, third * 2), third) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table></div>
+            <div class="table-container" style="border:1px solid var(--primary);"><table>${tableHeader}<tbody>${renderRows(filteredList.slice(third * 2), third * 2) || '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">لا توجد ديون.</td></tr>'}</tbody></table></div>
         `;
     }
 }
