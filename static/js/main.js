@@ -3128,9 +3128,13 @@ if (currentTabNum === 1) {
         let cleanAmount = Math.floor(Number(amount) || 0);
         customer.transactions.push({ id: Date.now(), date: new Date().toLocaleString('ar-EG'), type: type, amount: cleanAmount, note: note || '' });
 
-        if (type === 'إضافة') customer.currentDebt += cleanAmount;
-        else { customer.currentDebt -= cleanAmount; if (customer.currentDebt < 0) customer.currentDebt = 0; }
-
+    // تحصين العمليات: نجمع لو العملية إضافة، ونطرح لو الكلمة فيها 'تسديد'، وأي حاجة تانية (زي ترحيل) متأثرش على الرصيد
+        if (type === 'إضافة') {
+            customer.currentDebt += cleanAmount;
+        } else if (type.includes('تسديد')) {
+            customer.currentDebt -= cleanAmount; 
+            if (customer.currentDebt < 0) customer.currentDebt = 0;
+        }
         customer.status = (customer.currentDebt === 0) ? 'archived' : 'active';
         saveDB();
     };
