@@ -75,31 +75,6 @@
 <button class="btn-close-modal" onclick="document.getElementById('trashModal').style.display='none'" style="background:#64748b;">إغلاق</button>
 </div>
 </div>
-<div class="modal-overlay" id="calcModal">
-<div class="modal-box" style="max-width: 500px; text-align:center;">
-<h3 style="color:var(--primary); margin-bottom:15px;">🧮 الحاسبة الذكية</h3>
-<div style="display:flex; gap:5px; margin-bottom:15px; justify-content:center; background:rgba(0,0,0,0.3); padding:5px; border-radius:8px; border:1px solid var(--border);">
-<button class="calc-tab-btn" id="tabQuick" onclick="switchCalcMode('quick')">⚡ جمع سريع</button>
-<button class="calc-tab-btn" id="tabRows" onclick="switchCalcMode('rows')">📑 فواتير (القديمة)</button>
-</div>
-<div id="modeQuick">
-<p style="color:var(--text-muted); font-size:11px; margin-bottom:10px;">اكتب المبالغ مباشرة (يمكنك استخدام + أو -)</p>
-<input autocomplete="off" class="glass-input" id="quickCalcInput" oninput="evalQuickCalc()" placeholder="مثال: 500+250+100" style="width:100%; text-align:center; font-size:22px; direction:ltr; letter-spacing:2px; height:50px;" type="text"/>
-</div>
-<div id="modeRows" style="display:none;">
-<div id="calcRowsContainer" style="max-height: 30vh; overflow-y: auto; padding-right: 5px;"></div>
-<button class="btn-g" onclick="addCalcRow()" style="width: 100%; margin-top: 10px; background:var(--secondary); color:#000;">➕ إضافة سطر جديد</button>
-</div>
-<div style="background: rgba(0,0,0,0.3); border: 1px solid var(--primary); padding: 15px; border-radius: 8px; margin-top: 15px;">
-<span style="font-size: 13px; font-weight:bold; color: var(--text-muted);">الإجمالي الصافي:</span><br/>
-<span id="calcGrandTotal" style="font-size: 32px; font-weight: 900; color: var(--success);">0</span>
-</div>
-<div style="display: flex; gap: 8px; margin-top: 15px;">
-<button class="btn-g" onclick="applyCalcTotal()" style="flex: 1; background: var(--success); color:#000; font-size:14px;">✅ إدراج النتيجة</button>
-<button class="btn-g" onclick="closeCalcModal()" style="flex: 1; background: var(--danger); font-size:14px;">❌ إغلاق</button>
-</div>
-</div>
-</div>
 <div class="modal-overlay" id="treasuryActionModal">
 <div class="modal-box" style="max-width: 450px; text-align:center;">
 <h3 id="tModalTitle" style="margin-bottom: 10px;">إجراء خزينة</h3>
@@ -109,7 +84,6 @@
 <input autocomplete="off" class="glass-input" id="tModalAmount" placeholder="المبلغ (د.ل)" style="width:100%; text-align:center; font-size:20px; height:45px; margin-bottom:10px;" type="number"/>
 <input autocomplete="off" class="glass-input" id="tModalDesc" placeholder="ملاحظات / بيان (اختياري)" style="width:100%; text-align:center; margin-bottom:15px;" type="text"/>
 <div style="display:flex; gap:8px;">
-<button class="btn-g b-calc" onclick="openCalcModal('tModalAmount')" style="flex:0.3; font-size:16px;">🧮</button>
 <button class="btn-g" id="tModalSubmitBtn" onclick="submitTreasuryAction()" style="flex:1; font-size:14px;">✔️ تأكيد</button>
 <button class="btn-g" onclick="document.getElementById('treasuryActionModal').style.display='none'" style="flex:0.5; background:var(--bg-card); border:1px solid var(--border);">إلغاء</button>
 </div>
