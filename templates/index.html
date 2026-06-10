@@ -263,20 +263,25 @@ if ('serviceWorker' in navigator) {
 <script>
     async function loadCustomersSection() {
         try {
-            // 1. يطفي كل الزراير وينور زرار العملاء بس
             document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
             document.getElementById('item_1')?.classList.add('active');
 
-            // 2. يظهر رسالة تحميل مؤقتة
             const container = document.getElementById('dynamicSectionContent');
             container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
-            // 3. يسحب القسم الجديد
-       const res = await fetch('/section/customers', { cache: 'no-store' });    
-        if (!res.ok) throw new Error('Load failed');
+            const res = await fetch('/section/customers', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Load failed');
 
-            // 4. يعرض القسم
             container.innerHTML = await res.text();
+            
+            currentTabNum = 1;
+
+            // اللمسة السحرية لضمان رسم الـ HTML قبل ضخ البيانات
+            requestAnimationFrame(() => {
+                if (typeof renderActiveSection === 'function') {
+                    renderActiveSection();
+                }
+            });
 
         } catch (err) {
             console.error(err);
@@ -286,6 +291,7 @@ if ('serviceWorker' in navigator) {
                 </div>`;
         }
     }
+</script>
 
     // السطر ده عشان يشغل قسم العملاء تلقائياً أول ما تفتح المنظومة
    window.addEventListener('load', () => {
