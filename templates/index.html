@@ -293,14 +293,19 @@ if ('serviceWorker' in navigator) {
     }
 </script>
 
-    // السطر ده عشان يشغل قسم العملاء تلقائياً أول ما تفتح المنظومة
-   window.addEventListener('load', () => {
-    const dashboard = document.getElementById('dashboardSection');
-    // لو لوحة العمل ظاهرة (يعني سجلت دخول بنجاح)، حمل قسم العملاء
-    if (dashboard && dashboard.style.display !== 'none') {
-        loadCustomersSection();
-    }
-});
+    // التحميل التلقائي بعد ما يسجل دخول
+    window.addEventListener('load', () => {
+        const dashboard = document.getElementById('dashboardSection');
+        if (dashboard && dashboard.style.display !== 'none') {
+            loadCustomersSection();
+            // التعديل العبقري لضمان تشغيل الداتا مع أول فتحة للصفحة
+            setTimeout(() => {
+                if(typeof renderActiveSection === 'function'){
+                    renderActiveSection();
+                }
+            }, 50);
+        }
+    });
 </script>
 </body>
 </html>
