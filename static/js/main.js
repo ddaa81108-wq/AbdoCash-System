@@ -1,12 +1,26 @@
 const API_BASE = 'https://abdocash-system.onrender.com';
 
-let sysDB = JSON.parse(localStorage.getItem('sysDB')) || {
-    customer_pages: [],   // الأيام الحالية (موجودة عندك)
-    customers: [],        // 🌟 كشف الحساب الأبدي للعملاء (الجديد)
-    daily_archive: [],    // 🌟 أرشيف الإحصائيات (الجديد)
-    // سيب أي أقسام تانية بتاعتك هنا زي ما هي (treasury, companies, إلخ)
-};
+// 1. تعريف قاعدة البيانات مرة واحدة فقط
+let sysDB = null;
 
+// 2. نظام البحث عن البيانات القديمة (الكود العبقري بتاعك)
+try { sysDB = JSON.parse(localStorage.getItem('ABDO_SYSTEM_FINAL_DB')); } catch(e) {}
+
+if (!sysDB || (!sysDB.customer_pages && !sysDB.customers && !sysDB.trusts)) {
+    let oldKeys = ['sys_2030_db_v6', 'sys_2030_db_v5', 'sys_2030_db_v4', 'sys_2030_db_v3', 'sys_2030_db_v2', 'sys_2030_db'];
+    for (let key of oldKeys) {
+        try {
+            let data = JSON.parse(localStorage.getItem(key));
+            if(data && (data.customer_pages || data.customers || data.trusts)) { sysDB = data; break; }
+        } catch(e) {}
+    }
+}
+
+// 3. تأمين وتأسيس الأقسام (لو المنظومة جديدة أو الأقسام دي مش موجودة في القديم)
+if (!sysDB) { sysDB = {}; }
+if (!sysDB.customer_pages) sysDB.customer_pages = []; // الأيام الحالية
+if (!sysDB.customers) sysDB.customers = [];           // كشف الحساب الأبدي (الجديد)
+if (!sysDB.daily_archive) sysDB.daily_archive = [];   // أرشيف الإحصائيات (الجديد)
         // ==========================================
         // ===== نظام الدخول بكلمة المرور =====
         // ==========================================
@@ -651,20 +665,7 @@ function tryLogin() {
 
         function formatDateOnly(ts) { return new Date(ts).toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
 
-        let sysDB = null;
-        // محاولة 1: المفتاح الرئيسي
-        try { sysDB = JSON.parse(localStorage.getItem('ABDO_SYSTEM_FINAL_DB')); } catch(e) {}
-
-        // محاولة 2: المفاتيح القديمة
-        if (!sysDB || (!sysDB.customer_pages && !sysDB.customers && !sysDB.trusts)) {
-            let oldKeys = ['sys_2030_db_v6', 'sys_2030_db_v5', 'sys_2030_db_v4', 'sys_2030_db_v3', 'sys_2030_db_v2', 'sys_2030_db'];
-            for (let key of oldKeys) {
-                try {
-                    let data = JSON.parse(localStorage.getItem(key));
-                    if(data && (data.customer_pages || data.customers || data.trusts)) { sysDB = data; break; }
-                } catch(e) {}
-            }
-        }
+       
 
         // محاولة 3: snapshots التلقائية
         if (!sysDB || (!sysDB.customer_pages && !sysDB.customers)) {
