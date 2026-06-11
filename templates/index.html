@@ -269,33 +269,47 @@ async function loadCustomersSection() {
         document.getElementById('item_1')?.classList.add('active');
 
         const container = document.getElementById('dynamicSectionContent');
-        
-        // 1. إظهار رسالة التحميل فوراً أثناء جلب البيانات
+
+        // إظهار التحميل
         container.style.display = '';
         container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
-        // 2. جلب البيانات من السيرفر
+        // تحميل القسم
         const res = await fetch('/section/customers', { cache: 'no-store' });
-        if (!res.ok) throw new Error('Load failed');
+        if (!res.ok) {
+            throw new Error('Load failed');
+        }
 
-        // 3. تحويل البيانات لنص (رسالة التحميل لسه ظاهرة هنا)
         const html = await res.text();
 
-        // 4. تفريغ رسالة التحميل وحقن القسم الجديد النظيف
-        container.innerHTML = '';
+        // حقن المحتوى الجديد
         container.innerHTML = html;
+
+        // 🌟 الخدعة السحرية: إعادة إحياء السكريبتات اللي المتصفح بيوقفها بسبب innerHTML
+        container.querySelectorAll("script").forEach(oldScript => {
+            const s = document.createElement("script");
+
+            if (oldScript.src) {
+                s.src = oldScript.src;
+            } else {
+                s.textContent = oldScript.textContent;
+            }
+
+            document.body.appendChild(s);
+            oldScript.remove();
+        });
 
         currentTabNum = 1;
 
-        // 5. التشغيل الآمن للدالة بعد استقرار الـ DOM
-        requestAnimationFrame(() => {
-            if (typeof renderActiveSection === 'function') {
+        // استدعاء الرسم بعد تحميل السكربتات بـ 100 ملي ثانية عشان نديها وقتها
+        setTimeout(() => {
+            if (typeof renderActiveSection === "function") {
                 renderActiveSection();
             }
-        });
+        }, 100);
 
     } catch (error) {
-        console.error("Error loading section:", error);
+        console.error('Error loading section:', error);
         document.getElementById('dynamicSectionContent').innerHTML = '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
     }
 }
