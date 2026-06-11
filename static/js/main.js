@@ -3086,9 +3086,10 @@ function tryLogin() {
 
         // تعريف treasuryActionType لتوافق الكود القديم
         let treasuryActionType = 'in';
-
-    function renderActiveSection() {
-    autoCloseDay(); let activeFocus = document.activeElement.id;
+function renderActiveSection() {
+    autoCloseDay(); 
+    if (currentTabNum === 1) return; // 🛑 دي الضربة القاضية
+    let activeFocus = document.activeElement.id;
     const container = document.getElementById('dynamicSectionContent');
     
     if (currentTabNum === 1) {
