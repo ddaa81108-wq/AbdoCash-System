@@ -271,53 +271,51 @@ if ('serviceWorker' in navigator) {
 <script>
 async function loadCustomersSection() {
     try {
-        // تظبيط شكل الزراير
-        document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-        document.getElementById('item_1')?.classList.add('active');
 
-        const container = document.getElementById('dynamicSectionContent');
+        document.querySelectorAll('.menu-item')
+            .forEach(i => i.classList.remove('active'));
 
-        // إظهار التحميل
-        container.style.display = '';
-        container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
+        document.getElementById('item_1')
+            ?.classList.add('active');
 
-        // تحميل القسم
-        const res = await fetch('/section/customers', { cache: 'no-store' });
-        if (!res.ok) {
-            throw new Error('Load failed');
-        }
+        const container =
+            document.getElementById('dynamicSectionContent');
 
-        const html = await res.text();
+        container.style.display = 'block';
 
-        // حقن المحتوى الجديد
+        container.innerHTML =
+        '<div style="padding:20px;text-align:center;">⏳ جاري التحميل...</div>';
+
+        const res =
+            await fetch('/section/customers');
+
+        if (!res.ok)
+            throw new Error();
+
+        const html =
+            await res.text();
+
+        // حقن مرة واحدة فقط
         container.innerHTML = html;
-
-        // 🌟 الخدعة السحرية: إعادة إحياء السكريبتات اللي المتصفح بيوقفها بسبب innerHTML
-        container.querySelectorAll("script").forEach(oldScript => {
-            const s = document.createElement("script");
-
-            if (oldScript.src) {
-                s.src = oldScript.src;
-            } else {
-                s.textContent = oldScript.textContent;
-            }
-
-            document.body.appendChild(s);
-            oldScript.remove();
-        });
 
         currentTabNum = 1;
 
-        // استدعاء الرسم بعد تحميل السكربتات بـ 100 ملي ثانية عشان نديها وقتها
-        setTimeout(() => {
-            if (typeof renderActiveSection === "function") {
-                renderActiveSection();
-            }
-        }, 100);
+        // ❌ امسح الاستدعاء ده نهائياً
+        // renderActiveSection();
 
-    } catch (error) {
-        console.error('Error loading section:', error);
-        document.getElementById('dynamicSectionContent').innerHTML = '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
+        // ❌ امسح requestAnimationFrame
+
+    }
+
+    catch (e) {
+
+        console.error(e);
+
+        document.getElementById(
+            'dynamicSectionContent'
+        ).innerHTML =
+        '❌ خطأ';
+
     }
 }
 </script>
