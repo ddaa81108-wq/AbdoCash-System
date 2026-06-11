@@ -1,26 +1,12 @@
 const API_BASE = 'https://abdocash-system.onrender.com';
 
-// 1. تعريف قاعدة البيانات مرة واحدة فقط
-let sysDB = null;
+let sysDB = JSON.parse(localStorage.getItem('sysDB')) || {
+    customer_pages: [],   // الأيام الحالية (موجودة عندك)
+    customers: [],        // 🌟 كشف الحساب الأبدي للعملاء (الجديد)
+    daily_archive: [],    // 🌟 أرشيف الإحصائيات (الجديد)
+    // سيب أي أقسام تانية بتاعتك هنا زي ما هي (treasury, companies, إلخ)
+};
 
-// 2. نظام البحث عن البيانات القديمة (الكود العبقري بتاعك)
-try { sysDB = JSON.parse(localStorage.getItem('ABDO_SYSTEM_FINAL_DB')); } catch(e) {}
-
-if (!sysDB || (!sysDB.customer_pages && !sysDB.customers && !sysDB.trusts)) {
-    let oldKeys = ['sys_2030_db_v6', 'sys_2030_db_v5', 'sys_2030_db_v4', 'sys_2030_db_v3', 'sys_2030_db_v2', 'sys_2030_db'];
-    for (let key of oldKeys) {
-        try {
-            let data = JSON.parse(localStorage.getItem(key));
-            if(data && (data.customer_pages || data.customers || data.trusts)) { sysDB = data; break; }
-        } catch(e) {}
-    }
-}
-
-// 3. تأمين وتأسيس الأقسام (لو المنظومة جديدة أو الأقسام دي مش موجودة في القديم)
-if (!sysDB) { sysDB = {}; }
-if (!sysDB.customer_pages) sysDB.customer_pages = []; // الأيام الحالية
-if (!sysDB.customers) sysDB.customers = [];           // كشف الحساب الأبدي (الجديد)
-if (!sysDB.daily_archive) sysDB.daily_archive = [];   // أرشيف الإحصائيات (الجديد)
         // ==========================================
         // ===== نظام الدخول بكلمة المرور =====
         // ==========================================
@@ -665,7 +651,20 @@ function tryLogin() {
 
         function formatDateOnly(ts) { return new Date(ts).toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit' }); }
 
-       
+        let sysDB = null;
+        // محاولة 1: المفتاح الرئيسي
+        try { sysDB = JSON.parse(localStorage.getItem('ABDO_SYSTEM_FINAL_DB')); } catch(e) {}
+
+        // محاولة 2: المفاتيح القديمة
+        if (!sysDB || (!sysDB.customer_pages && !sysDB.customers && !sysDB.trusts)) {
+            let oldKeys = ['sys_2030_db_v6', 'sys_2030_db_v5', 'sys_2030_db_v4', 'sys_2030_db_v3', 'sys_2030_db_v2', 'sys_2030_db'];
+            for (let key of oldKeys) {
+                try {
+                    let data = JSON.parse(localStorage.getItem(key));
+                    if(data && (data.customer_pages || data.customers || data.trusts)) { sysDB = data; break; }
+                } catch(e) {}
+            }
+        }
 
         // محاولة 3: snapshots التلقائية
         if (!sysDB || (!sysDB.customer_pages && !sysDB.customers)) {
@@ -3086,65 +3085,35 @@ function tryLogin() {
 
         // تعريف treasuryActionType لتوافق الكود القديم
         let treasuryActionType = 'in';
-function renderActiveSection() {
-    autoCloseDay(); 
-    if (currentTabNum === 1) return; // 🛑 دي الضربة القاضية
-    let activeFocus = document.activeElement.id;
-    const container = document.getElementById('dynamicSectionContent');
+
+        function renderActiveSection() {
+            autoCloseDay(); let activeFocus = document.activeElement.id;
+            const container = document.getElementById('dynamicSectionContent');
+if (currentTabNum === 1) {
+    if (typeof activeCustomerPageIndex === 'undefined' || activeCustomerPageIndex === null) activeCustomerPageIndex = 0;
     
-    if (currentTabNum === 1) {
-        if (typeof activeCustomerPageIndex === 'undefined' || activeCustomerPageIndex === null) activeCustomerPageIndex = 0;
-        
-        if (!sysDB.customer_pages || sysDB.customer_pages.length === 0) {
-            sysDB.customer_pages = [{ id: 1, label: 'اليوم الأول — ' + new Date().toLocaleDateString('ar-EG'), created_at: Date.now(), old_debt: 0, new_work: 0, collected: 0, debts: [] }];
-            activeCustomerPageIndex = 0; saveDB();
-        }
-        if (!sysDB.customers) sysDB.customers = [];
+    if (!sysDB.customer_pages || sysDB.customer_pages.length === 0) {
+        sysDB.customer_pages = [{ id: 1, label: 'اليوم الأول — ' + new Date().toLocaleDateString('ar-EG'), created_at: Date.now(), old_debt: 0, new_work: 0, collected: 0, debts: [] }];
+        activeCustomerPageIndex = 0; saveDB();
+    }
+    if (!sysDB.customers) sysDB.customers = [];
 
-        if (activeCustomerPageIndex >= sysDB.customer_pages.length) activeCustomerPageIndex = sysDB.customer_pages.length - 1;
+    if (activeCustomerPageIndex >= sysDB.customer_pages.length) activeCustomerPageIndex = sysDB.customer_pages.length - 1;
 
-        let activePage = sysDB.customer_pages[activeCustomerPageIndex];
-        let isLatestDay = activeCustomerPageIndex === (sysDB.customer_pages.length - 1);
+    let activePage = sysDB.customer_pages[activeCustomerPageIndex];
+    let isLatestDay = activeCustomerPageIndex === (sysDB.customer_pages.length - 1);
 
-        // =======================
-        // حساب الكروت — النسخة النهائية الآمنة 100%
-        // =======================
-        
-        // مجموع الديون الفعلية الموجودة حالياً (للمراجعة والعرض فقط - بدون كسور)
-        let currentLiveTotal = (activePage.debts || []).reduce((sum, item) => sum + Math.round(Number(item.amount) || 0), 0);
+    if (activePage.old_debt === undefined || activePage.old_debt === null) {
+        let currentTotal = (activePage.debts || []).reduce((sum, item) => sum + Math.floor(Number(item.amount) || 0), 0);
+        activePage.old_debt = currentTotal;
+        saveDB();
+    }
 
-        // حماية الأيام القديمة (مع فلتر النصوص القوي)
-        if (
-            activePage.old_debt === undefined ||
-            activePage.old_debt === null ||
-            Number.isNaN(Number(activePage.old_debt))
-        ) {
-            activePage.old_debt = 0;
-        }
+    let totalOld = Math.floor(Number(activePage.old_debt) || 0);
+    let totalNew = Math.floor(Number(activePage.new_work) || 0);
+    let totalCollected = Math.floor(Number(activePage.collected) || 0);
+    let totalRem = totalOld + totalNew - totalCollected;
 
-        // الكروت المحاسبية (أرقام صحيحة مقفولة)
-        let totalOld = Math.round(Number(activePage.old_debt) || 0);
-        let totalNew = Math.round(Number(activePage.new_work) || 0);
-        let totalCollected = Math.round(Number(activePage.collected) || 0);
-
-        // حماية إضافية: منع أي قيم سالبة جاية من داتا قديمة بالخطأ
-        totalOld = Math.max(0, totalOld);
-        totalNew = Math.max(0, totalNew);
-        totalCollected = Math.max(0, totalCollected);
-
-        // المعادلة الصح للترحيل (مرحل + جديد - تحصيل)
-        let totalRem = totalOld + totalNew - totalCollected;
-
-        // حماية من ظهور سالب في الإجمالي النهائي
-        if (totalRem < 0) {
-            totalRem = 0;
-        }
-
-        // لو اليوم الحالي (فقط) ولسه الكروت صفر
-        // اعرض مجموع العملاء الحاليين بدل الصفر
-        if (isLatestDay && totalOld === 0 && totalNew === 0 && totalCollected === 0 && currentLiveTotal > 0) {
-            totalRem = currentLiveTotal;
-        }
     // --- 🌟 الدفتر الصامت: تسجيل كل حركة في كشف الحساب ---
     window.logCustomerTransaction = function(customerName, type, amount, note) {
         if (!sysDB.customers) sysDB.customers = [];
