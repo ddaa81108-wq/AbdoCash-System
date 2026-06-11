@@ -262,74 +262,48 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <script>
-    async function loadCustomersSection() {
+  async function loadCustomersSection() {
     try {
-        // تفعيل الزر
-        document.querySelectorAll('.menu-item')
-            .forEach(el => el.classList.remove('active'));
-
+        // تظبيط شكل الزراير
+        document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
         document.getElementById('item_1')?.classList.add('active');
 
         const container = document.getElementById('dynamicSectionContent');
 
-        // تنظيف قديم بالكامل
-        container.replaceChildren();
+        // إظهار التحميل
+        container.style.display = '';
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
-        // شاشة تحميل
-        container.innerHTML = `
-            <div style="
-                padding:20px;
-                text-align:center;
-                color:white;
-            ">
-                ⏳ جاري تحميل قسم ديون العملاء...
-            </div>
-        `;
-
-        const res = await fetch(
-            '/section/customers?t=' + Date.now(),
-            { cache: 'no-store' }
-        );
+        // تحميل القسم بقوة لمنع الكاش
+        const res = await fetch('/section/customers?t=' + Date.now(), { cache: 'no-store' });
 
         if (!res.ok) {
-            throw new Error('section load failed');
+            throw new Error('Load failed');
         }
 
         const html = await res.text();
 
-        // فضي ثم حقن جديد
-        container.innerHTML = '';
-        container.insertAdjacentHTML('afterbegin', html);
-
-        // إجبار ظهور القسم
-        container.hidden = false;
-        container.style.display = 'block';
+        // حقن المحتوى الجديد
+        container.innerHTML = html;
 
         currentTabNum = 1;
 
-        // انتظار رسم الـ DOM
-        setTimeout(() => {
+        // إعادة الرسم وتفخيخ الأخطاء
+        requestAnimationFrame(() => {
             try {
                 if (typeof renderActiveSection === 'function') {
                     renderActiveSection();
                 }
-            } catch (e) {
-                console.error('render error:', e);
+            } catch(e) {
+                console.error("Render Error:", e);
+                // رسالة بتضرب في نص الشاشة لو فيه خطأ
+                alert("سبب التعليقة أهو: " + e.message);
             }
-        }, 50);
+        });
 
-    } catch (err) {
-        console.error(err);
-
-        document.getElementById('dynamicSectionContent').innerHTML = `
-            <div style="
-                color:red;
-                padding:20px;
-                text-align:center;
-            ">
-                ❌ فشل فتح قسم ديون العملاء
-            </div>
-        `;
+    } catch (error) {
+        console.error('Error loading section:', error);
+        document.getElementById('dynamicSectionContent').innerHTML = '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
     }
 }
 </script>
