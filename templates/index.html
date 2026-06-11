@@ -264,22 +264,45 @@ if ('serviceWorker' in navigator) {
 <script>
     async function loadCustomersSection() {
         try {
+            // تظبيط شكل الزراير
             document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
             document.getElementById('item_1')?.classList.add('active');
 
             const container = document.getElementById('dynamicSectionContent');
-            container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
-            const res = await fetch('/section/customers', { cache: 'no-store' });
-            if (!res.ok) throw new Error('Load failed');
+            // إظهار التحميل
+            container.style.display = '';
+            container.innerHTML =
+                '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
-            container.innerHTML = await res.text();
-            
+            // تحميل القسم
+            const res = await fetch('/section/customers', {
+                cache: 'no-store'
+            });
+
+            if (!res.ok) {
+                throw new Error('Load failed');
+            }
+
+            const html = await res.text();
+
+            // حقن المحتوى الجديد
+            container.innerHTML = html;
+
             currentTabNum = 1;
-            if(typeof renderActiveSection === 'function') renderActiveSection();
+
+            // إعادة الرسم بعد استقرار الصفحة
+            requestAnimationFrame(() => {
+                if (typeof renderActiveSection === 'function') {
+                    renderActiveSection();
+                }
+            });
+
         } catch (error) {
-            console.error("Error loading section:", error);
-            document.getElementById('dynamicSectionContent').innerHTML = '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
+            console.error('Error loading section:', error);
+
+            document.getElementById('dynamicSectionContent').innerHTML =
+                '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
         }
     }
 </script>
