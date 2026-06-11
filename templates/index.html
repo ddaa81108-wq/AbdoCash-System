@@ -260,7 +260,6 @@ if ('serviceWorker' in navigator) {
     });
 }
 </script>
-
 <script>
     async function loadCustomersSection() {
         try {
@@ -276,41 +275,37 @@ if ('serviceWorker' in navigator) {
             container.innerHTML = await res.text();
             
             currentTabNum = 1;
-            if(typeof renderActiveSection === 'function') renderActiveSection();
-        } catch (error) {
-            console.error("Error loading section:", error);
-            document.getElementById('dynamicSectionContent').innerHTML = '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
+
+            // اللمسة السحرية لضمان رسم الـ HTML قبل ضخ البيانات
+            requestAnimationFrame(() => {
+                if (typeof renderActiveSection === 'function') {
+                    renderActiveSection();
+                }
+            });
+
+        } catch (err) {
+            console.error(err);
+            document.getElementById('dynamicSectionContent').innerHTML = `
+                <div style="padding:20px;color:#ef4444;text-align:center;">
+                    فشل تحميل قسم العملاء ❌
+                </div>`;
         }
     }
 </script>
 
-<div id="customerLedgerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; padding:15px; direction:rtl;">
-    <div style="background:var(--bg-card, #1e293b); border:2px solid var(--primary, #38bdf8); border-radius:12px; width:100%; max-width:600px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-        
-        <div style="padding:15px; border-bottom:1px solid rgba(56,189,248,0.2); display:flex; justify-content:space-between; align-items:center; background:rgba(56,189,248,0.05); border-radius:12px 12px 0 0;">
-            <div>
-                <div style="font-size:18px; font-weight:900; color:var(--text-main, #fff);" id="ledgerCustomerName">👤 اسم العميل</div>
-                <div style="font-size:13px; color:var(--text-muted, #94a3b8); margin-top:4px;">المتبقي الفعلي بالدفتر: <span id="ledgerCustomerDebt" style="color:var(--danger, #ef4444); font-weight:bold; font-size:16px;">0</span></div>
-            </div>
-            <button onclick="document.getElementById('customerLedgerModal').style.display='none'" style="background:var(--danger, #ef4444); color:#fff; border:none; padding:5px 15px; border-radius:6px; cursor:pointer; font-weight:bold;">❌ إغلاق</button>
-        </div>
-
-        <div style="padding:15px; overflow-y:auto; flex:1;">
-            <table style="width:100%; border-collapse:collapse; text-align:center;">
-                <thead>
-                    <tr>
-                        <th style="padding:10px; border-bottom:2px solid var(--primary); color:var(--text-muted);">التاريخ</th>
-                        <th style="padding:10px; border-bottom:2px solid var(--primary); color:var(--text-muted);">الحركة</th>
-                        <th style="padding:10px; border-bottom:2px solid var(--primary); color:var(--text-muted);">المبلغ</th>
-                        <th style="padding:10px; border-bottom:2px solid var(--primary); color:var(--text-muted);">البيان</th>
-                    </tr>
-                </thead>
-                <tbody id="ledgerTransactionsBody">
-                    </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
+    // التحميل التلقائي بعد ما يسجل دخول
+    window.addEventListener('load', () => {
+        const dashboard = document.getElementById('dashboardSection');
+        if (dashboard && dashboard.style.display !== 'none') {
+            loadCustomersSection();
+            // التعديل العبقري لضمان تشغيل الداتا مع أول فتحة للصفحة
+            setTimeout(() => {
+                if(typeof renderActiveSection === 'function'){
+                    renderActiveSection();
+                }
+            }, 50);
+        }
+    });
+</script>
 </body>
 </html>
