@@ -263,48 +263,75 @@ if ('serviceWorker' in navigator) {
 
 <script>
     async function loadCustomersSection() {
-        try {
-            // تظبيط شكل الزراير
-            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
-            document.getElementById('item_1')?.classList.add('active');
+    try {
+        // تفعيل الزر
+        document.querySelectorAll('.menu-item')
+            .forEach(el => el.classList.remove('active'));
 
-            const container = document.getElementById('dynamicSectionContent');
+        document.getElementById('item_1')?.classList.add('active');
 
-            // إظهار التحميل
-            container.style.display = '';
-            container.innerHTML =
-                '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
+        const container = document.getElementById('dynamicSectionContent');
 
-            // تحميل القسم
-            const res = await fetch('/section/customers', {
-                cache: 'no-store'
-            });
+        // تنظيف قديم بالكامل
+        container.replaceChildren();
 
-            if (!res.ok) {
-                throw new Error('Load failed');
-            }
+        // شاشة تحميل
+        container.innerHTML = `
+            <div style="
+                padding:20px;
+                text-align:center;
+                color:white;
+            ">
+                ⏳ جاري تحميل قسم ديون العملاء...
+            </div>
+        `;
 
-            const html = await res.text();
+        const res = await fetch(
+            '/section/customers?t=' + Date.now(),
+            { cache: 'no-store' }
+        );
 
-            // حقن المحتوى الجديد
-            container.innerHTML = html;
+        if (!res.ok) {
+            throw new Error('section load failed');
+        }
 
-            currentTabNum = 1;
+        const html = await res.text();
 
-            // إعادة الرسم بعد استقرار الصفحة
-            requestAnimationFrame(() => {
+        // فضي ثم حقن جديد
+        container.innerHTML = '';
+        container.insertAdjacentHTML('afterbegin', html);
+
+        // إجبار ظهور القسم
+        container.hidden = false;
+        container.style.display = 'block';
+
+        currentTabNum = 1;
+
+        // انتظار رسم الـ DOM
+        setTimeout(() => {
+            try {
                 if (typeof renderActiveSection === 'function') {
                     renderActiveSection();
                 }
-            });
+            } catch (e) {
+                console.error('render error:', e);
+            }
+        }, 50);
 
-        } catch (error) {
-            console.error('Error loading section:', error);
+    } catch (err) {
+        console.error(err);
 
-            document.getElementById('dynamicSectionContent').innerHTML =
-                '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
-        }
+        document.getElementById('dynamicSectionContent').innerHTML = `
+            <div style="
+                color:red;
+                padding:20px;
+                text-align:center;
+            ">
+                ❌ فشل فتح قسم ديون العملاء
+            </div>
+        `;
     }
+}
 </script>
 
 <div id="customerLedgerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; padding:15px; direction:rtl;">
