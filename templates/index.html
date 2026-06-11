@@ -262,47 +262,40 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <script>
-  async function loadCustomersSection() {
+async function loadCustomersSection() {
     try {
         // تظبيط شكل الزراير
         document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
         document.getElementById('item_1')?.classList.add('active');
 
         const container = document.getElementById('dynamicSectionContent');
-
-        // إظهار التحميل
+        
+        // 1. إظهار رسالة التحميل فوراً أثناء جلب البيانات
         container.style.display = '';
         container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
-        // تحميل القسم بقوة لمنع الكاش
-        const res = await fetch('/section/customers?t=' + Date.now(), { cache: 'no-store' });
+        // 2. جلب البيانات من السيرفر
+        const res = await fetch('/section/customers', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Load failed');
 
-        if (!res.ok) {
-            throw new Error('Load failed');
-        }
-
+        // 3. تحويل البيانات لنص (رسالة التحميل لسه ظاهرة هنا)
         const html = await res.text();
 
-        // حقن المحتوى الجديد
+        // 4. تفريغ رسالة التحميل وحقن القسم الجديد النظيف
+        container.innerHTML = '';
         container.innerHTML = html;
 
         currentTabNum = 1;
 
-        // إعادة الرسم وتفخيخ الأخطاء
+        // 5. التشغيل الآمن للدالة بعد استقرار الـ DOM
         requestAnimationFrame(() => {
-            try {
-                if (typeof renderActiveSection === 'function') {
-                    renderActiveSection();
-                }
-            } catch(e) {
-                console.error("Render Error:", e);
-                // رسالة بتضرب في نص الشاشة لو فيه خطأ
-                alert("سبب التعليقة أهو: " + e.message);
+            if (typeof renderActiveSection === 'function') {
+                renderActiveSection();
             }
         });
 
     } catch (error) {
-        console.error('Error loading section:', error);
+        console.error("Error loading section:", error);
         document.getElementById('dynamicSectionContent').innerHTML = '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
     }
 }
