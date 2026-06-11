@@ -218,21 +218,14 @@
 <button class="btn-sidebar btn-logout" onclick="logout()">🚪 تسجيل الخروج</button>
 </div>
 </div>
-<div class="main-content" style="display:block; min-height:100vh;">
-<div
-    id="dynamicSectionContent"
-    style="
-        display:block;
-        min-height:600px;
-        height:auto;
-        width:100%;
-        overflow:visible;
-    "
->
-    <div style="padding:20px;text-align:center;color:gray;">
-        جاري التحميل...
+<div class="main-content">
+
+    <div id="dynamicSectionContent">
+        <div style="padding:20px;text-align:center;color:gray;">
+            جاري التحميل...
+        </div>
     </div>
-</div>
+
 </div> <!-- main-content -->
 
 </div> <!-- dashboard-wrapper -->
@@ -269,56 +262,26 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <script>
-async function loadCustomersSection() {
-alert('الزرار لسه عايش!');
-  try {
+    async function loadCustomersSection() {
+        try {
+            document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+            document.getElementById('item_1')?.classList.add('active');
 
-        document.querySelectorAll('.menu-item')
-            .forEach(i => i.classList.remove('active'));
+            const container = document.getElementById('dynamicSectionContent');
+            container.innerHTML = '<div style="padding:20px;text-align:center;color:white;">⏳ جاري تحميل القسم...</div>';
 
-        document.getElementById('item_1')
-            ?.classList.add('active');
+            const res = await fetch('/section/customers', { cache: 'no-store' });
+            if (!res.ok) throw new Error('Load failed');
 
-        const container =
-            document.getElementById('dynamicSectionContent');
-
-        container.style.display = 'block';
-
-        container.innerHTML =
-        '<div style="padding:20px;text-align:center;">⏳ جاري التحميل...</div>';
-
-        const res =
-            await fetch('/section/customers');
-
-        if (!res.ok)
-            throw new Error();
-
-        const html =
-            await res.text();
-
-        // حقن مرة واحدة فقط
-        container.innerHTML = html;
-
-        currentTabNum = 1;
-
-        // ❌ امسح الاستدعاء ده نهائياً
-        // renderActiveSection();
-
-        // ❌ امسح requestAnimationFrame
-
+            container.innerHTML = await res.text();
+            
+            currentTabNum = 1;
+            if(typeof renderActiveSection === 'function') renderActiveSection();
+        } catch (error) {
+            console.error("Error loading section:", error);
+            document.getElementById('dynamicSectionContent').innerHTML = '<div style="color:red;padding:20px;">❌ حدث خطأ في التحميل</div>';
+        }
     }
-
-    catch (e) {
-
-        console.error(e);
-
-        document.getElementById(
-            'dynamicSectionContent'
-        ).innerHTML =
-        '❌ خطأ';
-
-    }
-}
 </script>
 
 <div id="customerLedgerModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; padding:15px; direction:rtl;">
