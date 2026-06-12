@@ -3120,25 +3120,42 @@ if (currentTabNum === 1) {
                 let totalOld = activePage.old_debt || 0;
                 let totalNew = activePage.new_work || 0;
                 let totalCollected = activePage.collected || 0;
-               // الرصيد المرحل = مرحل قديم + جديد - تحصيل
+   // حساب الإجمالي المرحل بشكل آمن (مع التقريب لمنع أي كسور)
+const safeOld = Number(totalOld || 0);
+const safeNew = Number(totalNew || 0);
+const safeCollected = Number(totalCollected || 0);
+
 let totalRem = Math.round(
     Math.max(
         0,
-        Number(totalOld) + Number(totalNew) - Number(totalCollected)
+        safeOld + safeNew - safeCollected
     )
 );
 
-// لو اليوم الحالي ولسه مفيش كروت، اعرض الموجود فعلياً
+// لو المتغيرات موجودة واليوم الحالي فاضي اعرض الموجود فعلياً
 if (
-    isLatestDay &&
-    totalRem === 0 &&
-    Array.isArray(activePage.debts)
+    typeof activePage !== 'undefined' &&
+    Array.isArray(activePage.debts) &&
+    typeof isLatestDay !== 'undefined' &&
+    isLatestDay === true &&
+    totalRem === 0
 ) {
-    totalRem = Math.round(activePage.debts.reduce(
-        (s, d) => s + Number(d.amount || 0),
-        0
-    ));
+    totalRem = Math.round(
+        activePage.debts.reduce(
+            (sum, row) => sum + Number(row.amount || 0),
+            0
+        )
+    );
 }
+
+// سطر الكشف المؤقت الآمن (بدون كراش)
+console.log("نتائج الفحص:", {
+    totalOld: safeOld,
+    totalNew: safeNew,
+    totalCollected: safeCollected,
+    totalRem: totalRem,
+    isLatestDay: typeof isLatestDay !== 'undefined' ? isLatestDay : "غير معرف"
+});
 
                 // --- 1. نظام التراجع (شبكة الأمان 10 ثواني) ---
                 window.deletedCustStore = window.deletedCustStore || {};
