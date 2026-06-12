@@ -246,15 +246,56 @@ function tryLogin() {
                         throw new Error('جاري العمل على الذاكرة المحلية مؤقتاً');
                     })
                    .then(serverData => {
-                        // السيرفر بتاعك بيبعت البيانات جوه صندوق اسمه "data"
-                        if(serverData && serverData.status === "success" && serverData.data) {
-                            console.log("تم سحب البيانات من السحابة بنجاح!");
-                            // بناخد البيانات الصافية من الصندوق ونفرشها في المنظومة
-                            localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(serverData.data));
-                            sysDB = serverData.data;
-                        }
-                        finalizeLoginSteps(user);
-                    })
+
+    if(serverData && serverData.status === "success" && serverData.data) {
+
+        console.log("تم سحب البيانات من السحابة بنجاح!");
+
+        let cloudDB = serverData.data;
+
+        let localRaw =
+            localStorage.getItem(
+                'ABDO_SYSTEM_FINAL_DB'
+            );
+
+        let localDB =
+            localRaw
+            ? JSON.parse(localRaw)
+            : null;
+
+        let localTime =
+            localDB?.last_updated || 0;
+
+        let cloudTime =
+            cloudDB?.last_updated || 0;
+
+        if(localDB && localTime > cloudTime){
+
+            console.log(
+                "المحلي أحدث ← رفع للسحابة"
+            );
+
+            sysDB = localDB;
+
+            saveDB();
+
+        } else {
+
+            console.log(
+                "السحابة أحدث ← تحميل"
+            );
+
+            sysDB = cloudDB;
+
+            localStorage.setItem(
+                'ABDO_SYSTEM_FINAL_DB',
+                JSON.stringify(cloudDB)
+            );
+        }
+    }
+
+    finalizeLoginSteps(user);
+})
                     .catch(error => {
                         console.log(error.message);
                         finalizeLoginSteps(user); // تشغيل المنظومة أوتوماتيك حتى لو مفيش اتصال
