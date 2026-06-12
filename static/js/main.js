@@ -3120,7 +3120,25 @@ if (currentTabNum === 1) {
                 let totalOld = activePage.old_debt || 0;
                 let totalNew = activePage.new_work || 0;
                 let totalCollected = activePage.collected || 0;
-                let totalRem = totalOld + totalNew - totalCollected;
+               // الرصيد المرحل = مرحل قديم + جديد - تحصيل
+let totalRem = Math.round(
+    Math.max(
+        0,
+        Number(totalOld) + Number(totalNew) - Number(totalCollected)
+    )
+);
+
+// لو اليوم الحالي ولسه مفيش كروت، اعرض الموجود فعلياً
+if (
+    isLatestDay &&
+    totalRem === 0 &&
+    Array.isArray(activePage.debts)
+) {
+    totalRem = Math.round(activePage.debts.reduce(
+        (s, d) => s + Number(d.amount || 0),
+        0
+    ));
+}
 
                 // --- 1. نظام التراجع (شبكة الأمان 10 ثواني) ---
                 window.deletedCustStore = window.deletedCustStore || {};
