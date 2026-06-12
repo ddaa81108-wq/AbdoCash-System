@@ -3503,13 +3503,15 @@ console.log("نتائج الفحص:", {
                         
                         <td><input type="number" class="glass-input" style="width:80px;text-align:center;font-weight:900;color:var(--success);" value="${paid}" onchange="updateDebtField('${pagesKey}', ${item.id}, 'payment', this.value)"></td>
                         
-                        <td style="color:var(--danger); font-weight:900; font-size:16px; background:rgba(239,68,68,0.05);">${rem}</td>
+                      <td style="color:var(--danger); font-weight:900; font-size:16px; background:rgba(239,68,68,0.05);">${rem}</td>
                         <td>
+                            <button class="btn-mini" onclick="openCustomerProfile(${item.id}, '${item.name}')" title="فتح ملف العميل" style="background:transparent; border:none; font-size:18px; cursor:pointer;">📄</button>
+                            
                             <button class="btn-mini b-calc" onclick="openTransactionModal('${pagesKey}', ${item.id}, '${item.name}')" title="عمليات حسابية معقدة">➕ عمليات</button>
                             <button class="btn-mini b-full" onclick="deleteDebtItem('${pagesKey}', ${item.id})">❌</button>
                         </td>
                     </tr>`;
-                }).join('');
+                }).join(''););
 
                 let sectionTitle = currentTabNum === 2 ? '🏢 حسابات الشركات' : '📦 كبار العملاء (جملة)';
 
