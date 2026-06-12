@@ -3511,7 +3511,7 @@ console.log("نتائج الفحص:", {
                             <button class="btn-mini b-full" onclick="deleteDebtItem('${pagesKey}', ${item.id})">❌</button>
                         </td>
                     </tr>`;
-                }).join(''););
+                }).join('');
 
                 let sectionTitle = currentTabNum === 2 ? '🏢 حسابات الشركات' : '📦 كبار العملاء (جملة)';
 
