@@ -3517,14 +3517,14 @@ console.log("نتائج الفحص:", {
                     </tr>`;
                 }).join('');
 
-                let sectionTitle = currentTabNum === 2 ? '🏢 حسابات الشركات' : '📦 كبار العملاء (جملة)';
+             let sectionTitle = currentTabNum === 2 ? '🏢 حسابات الشركات' : '📦 كبار العملاء (جملة)';
 
                 container.innerHTML = `
                     <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);border-radius:8px;padding:10px 16px;margin-bottom:8px;">
                         <div style="font-size:17px;font-weight:900;color:var(--text-main);">${sectionTitle}</div>
                         <button onclick="createNewDebtDay('${pagesKey}', '${activePageIndexKey}')" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;box-shadow:0 4px 10px rgba(56,189,248,0.3);">➕ يوم جديد (ترحيل الأرصدة)</button>
                     </div>
-                    <div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;align-items:center;flex-wrap:nowrap;">
+                    <div style="display:none;">
                         <span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">📅 الأيام:</span>
                         ${dayTabsHtml}
                     </div>
