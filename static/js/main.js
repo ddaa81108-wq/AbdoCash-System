@@ -4330,3 +4330,61 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 });
+
+// =====================================================
+// ملف العميل الاحترافي - عرض فقط - آمن
+// =====================================================
+
+window.openCustomerProfile = function(clientId, clientName){
+    try{
+        document.getElementById('clientProfileOverlay')?.remove();
+        let allMoves=[];
+
+        (sysDB.customer_pages||[]).forEach(day=>{
+            (day.debts||[]).forEach(row=>{
+                if(row.id==clientId||row.name===clientName){
+                    allMoves.push({
+                        day: day.label||'بدون تاريخ',
+                        amount: Math.round(Number(row.amount||0)),
+                        date: row.lastPaymentDate||row.id||0
+                    });
+                }
+            });
+        });
+
+        allMoves.sort((a,b)=>b.date-a.date);
+
+        // عرض آخر رصيد فقط
+        let currentBalance=allMoves[0]?.amount||0;
+
+        let html=`
+        <div id="clientProfileOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999999;display:flex;justify-content:center;align-items:center;">
+            <div style="width:min(750px,95%);background:#1e1e1e;padding:20px;border-radius:18px;max-height:85vh;overflow:auto;color:white;direction:rtl;">
+                <div style="display:flex;justify-content:space-between;">
+                    <h2 style="margin:0;">📄 ملف العميل</h2>
+                    <button onclick="closeCustomerProfile()" style="background:#d9534f; color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:16px;">✖ إغلاق</button>
+                </div>
+                <hr style="border-color:#444; margin: 15px 0;">
+                <h3 style="color:#2196F3; margin-top:0;">${clientName}</h3>
+                <div style="background:#2b2b2b; padding:15px; border-radius:10px; margin-bottom:15px;">
+                    <p style="margin:5px 0;">💰 الرصيد الحالي: <b style="color:#4CAF50; font-size:20px;">${currentBalance}</b></p>
+                    <p style="margin:5px 0;">📦 عدد الأيام المسجلة: ${allMoves.length}</p>
+                </div>
+                <hr style="border-color:#444; margin: 15px 0;">
+                ${allMoves.map(x=>`
+                <div style="padding:10px;margin-bottom:10px;background:#2b2b2b;border-radius:10px; border-right: 4px solid #2196F3;">
+                    📅 ${x.day} <br> <span style="color:#4CAF50; font-weight:bold;">💵 ${x.amount}</span>
+                </div>
+                `).join('')}
+            </div>
+        </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend',html);
+    }catch(e){
+        console.error(e);
+    }
+};
+
+window.closeCustomerProfile=function(){
+    document.getElementById('clientProfileOverlay')?.remove();
+};
