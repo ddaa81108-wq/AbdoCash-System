@@ -3160,8 +3160,12 @@ if (currentTabNum === 1) {
                     saveDB();
                 }
 
-                let totalOld = activePage.old_debt || 0;
-                let totalNew = activePage.new_work || 0;
+// إجمالي الديون الحالية من الشاشة المفتوحة للكاشير السريع
+let totalOld = (activePage?.debts || []).reduce(
+    (sum, item) => sum + Math.floor(Number(item.amount ?? 0)),
+    0
+);
+               let totalNew = activePage.new_work || 0;
                 let totalCollected = activePage.collected || 0;
    // حساب الإجمالي المرحل بشكل آمن (مع التقريب لمنع أي كسور)
 const safeOld = Number(totalOld || 0);
