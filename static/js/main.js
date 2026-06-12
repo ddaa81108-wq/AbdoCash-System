@@ -4193,78 +4193,48 @@ window.deleteDebtTransaction = function(pagesKey, clientId, transIdx) {
     showToast("✅ تم نقل التسلسل إلى السلة", "success");
 };
         
+// ======== كود الربط بالسحابة (المزامنة الذكية الآمنة وبدون تهنيج للواجهة) ========
+let _saveDBBusy = false;
+window.saveDB = async function() {
+    // 1. تأمين سلة المهملات عشان متعملش كراش
+    if (!sysDB.trash_bin) sysDB.trash_bin = [];
+    
+    if(_saveDBBusy) return;
+    _saveDBBusy = true;
+    
+    try {
+        // 2. إضافة ختم زمني عشان المحلي يكسب دايماً في التحديث
+        sysDB.last_updated = Date.now();
 
-        // ======== كود الربط بالسحابة (المزامنة الذكية) ========
-        let _saveDBBusy = false;
-        window.saveDB = async function() {
-            if(_saveDBBusy) return;
-            _saveDBBusy = true;
-            try {
-                // 1. إضافة ختم زمني (عشان نعرف أحدث نسخة بالثانية)
-                sysDB.last_updated = Date.now();
+        // 3. الحفظ في المتصفح كنسخة احتياطية سريعة
+        localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
+        
+        // 4. الإرسال للسحابة في الخلفية (بدون ما نعلق الشاشة)
+        let saveUrl = (typeof API_BASE !== 'undefined' ? API_BASE : '') + '/api/save_data';
+        fetch(saveUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sysDB)
+        }).then(() => {
+            console.log("تم رفع البيانات للسحابة");
+        }).catch(() => {
+            console.log("تم الحفظ محلياً فقط");
+        });
+        
+    } catch(e) { 
+        console.error("خطأ عام في الحفظ:", e); 
+    }
+    
+    // 5. تحديث حالة الحفظ على الشاشة
+    try { if(typeof setSaveStatus === 'function') setSaveStatus('saving', '⏳ حفظ...'); } catch(e) {}
+    try { if(typeof updateDataLists === 'function') updateDataLists(); } catch(e) {}
+    try { if(typeof updateLastSaveText === 'function') updateLastSaveText(); } catch(e) {}
 
-                // 2. الحفظ في المتصفح كنسخة احتياطية سريعة
-                localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
-                
-                // 3. الإرسال لخزنة MongoDB السحابية
-                await fetch('/api/save_data', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(sysDB)
-                }).catch(e => console.log("السحابة غير متصلة مؤقتاً، تم الحفظ محلياً."));
-            } catch(e) { console.error("خطأ عام في الحفظ:", e); }
-            
-            setTimeout(() => { _saveDBBusy = false; }, 300);
-        };
-
-        let originalOnload = window.onload;
-        window.onload = async function() {
-            try {
-                // 1. سحب النسخة المحلية من المتصفح
-                let localDataStr = localStorage.getItem('ABDO_SYSTEM_FINAL_DB');
-                let localDB = localDataStr ? JSON.parse(localDataStr) : null;
-                let localTime = (localDB && localDB.last_updated) ? localDB.last_updated : 0;
-
-                // 2. سحب النسخة اللي على السحابة
-                let cloudDB = null;
-                let cloudTime = 0;
-                try {
-                    let response = await fetch(API_BASE + '/api/load_data');
-                    let result = await response.json();
-                    if (result.status === 'success' && result.data) {
-                        cloudDB = result.data;
-                        cloudTime = cloudDB.last_updated ? cloudDB.last_updated : 0;
-                    }
-                } catch(e) { console.log("جاري العمل محلياً لصعوبة الاتصال بالسحابة..."); }
-
-                // 3. المزامنة الذكية (قاضية على مشكلة ضياع البيانات)
-                if (localDB && localTime > cloudTime) {
-                    // لو النت قطع واشتغلت محلي، المحلي هيكسب ويترفع يغطي السحابة
-                    sysDB = localDB;
-                    fetch(API_BASE + '/api/save_data', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(sysDB)
-                    }).catch(e=>{});
-                } else if (cloudDB && cloudTime >= localTime) {
-                    // لو متصفح جديد (زي إيدج) أو السحابة أحدث، السحابة تكسب وتغطي المتصفح
-                    sysDB = cloudDB;
-                    localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
-                } else if (localDB) {
-                    sysDB = localDB; // لو مفيش نت خالص
-                }
-
-                // 4. أمر فرش الداتا على الشاشة
-                if(typeof renderActiveSection === 'function') {
-                    renderActiveSection();
-                }
-
-            } catch(e) { console.error("خطأ أثناء المزامنة:", e); }
-            
-            if(typeof originalOnload === 'function') {
-                originalOnload();
-            }
-        };
+    setTimeout(() => { 
+        _saveDBBusy = false; 
+        try { if(typeof setSaveStatus === 'function') setSaveStatus('ok', 'جاهز'); } catch(e) {}
+    }, 300);
+};
 // ==============================================
         if(typeof updateUserChip === 'function') updateUserChip();
     }
