@@ -2144,9 +2144,11 @@ function tryLogin() {
             showToast(`تم إرجاع الحساب بنجاح.`, "success");
         }
 
-        function generateActionsHtml(dbKey, item) {
+     function generateActionsHtml(dbKey, item) {
             return `
                 <div id="btns-${dbKey}-${item.id}" style="display:flex; gap:3px; flex-wrap:wrap; justify-content:center;">
+                    <button class="btn-mini" onclick="openCustomerProfile(${item.id}, '${item.name}')" title="فتح ملف العميل" style="background:transparent; border:none; font-size:18px; cursor:pointer;">📄</button>
+                    
                     <button class="btn-mini b-add-more" onclick="showInline('${dbKey}', ${item.id}, 'add')">➕</button>
                     <button class="btn-mini b-part" title="تسديد جزئي" onclick="showInline('${dbKey}', ${item.id}, 'sub')">➖</button>
                     <button class="btn-mini b-full" title="مسح فوري" onclick="softDelete('${dbKey}', ${item.id})">❌</button>
