@@ -3400,10 +3400,10 @@ console.log("نتائج الفحص:", {
                         <button onclick="closeCustomerDay()" style="background:var(--primary);color:#000;border:none;border-radius:6px;padding:7px 18px;font-size:13px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;box-shadow:0 4px 10px rgba(56,189,248,0.3);">🔄 تقفيل اليوم (ترحيل)</button>
                     </div>
                     
-                    <div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0 15px;align-items:center;flex-wrap:nowrap;">
-                        <span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">📅 الأرشيف:</span>
-                        ${dayTabsHtml}
-                    </div>
+                  <div style="display:none;">
+    <span style="color:var(--text-muted);font-size:11px;flex-shrink:0;">📅 الأرشيف:</span>
+    ${dayTabsHtml}
+</div>
 
                     <div style="display:flex; gap:15px; margin-bottom:20px; justify-content:center; flex-wrap:wrap;">
                         <div style="flex:1; min-width:160px; background:linear-gradient(135deg, rgba(15,23,42,0.8), rgba(30,41,59,0.8)); border:1px solid var(--text-muted); border-radius:12px; padding:15px; text-align:center; box-shadow:0 6px 15px rgba(0,0,0,0.2);">
