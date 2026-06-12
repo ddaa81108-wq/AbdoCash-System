@@ -3369,13 +3369,15 @@ console.log("نتائج الفحص:", {
                 let filteredList = activePage.debts.filter(item => item.name.toLowerCase().includes(searchQuery));
                 let third = Math.ceil(filteredList.length / 3);
 
-                let renderRows = (list, offset) => list.map((item, index) => {
+              let renderRows = (list, offset) => list.map((item, index) => {
                     return `<tr>
                         <td class="serial-cell">${offset + index + 1}</td>
                         <td><b style="font-size:14px;">${item.name}</b></td>
                         <td style="color:var(--danger); font-weight:900; font-size:16px;">${Math.floor(item.amount)}</td>
                         <td style="width:140px;">
-                            <div id="cust-btns-${item.id}" style="display:flex; gap:4px; justify-content:center;">
+                            <div id="cust-btns-${item.id}" style="display:flex; gap:4px; justify-content:center; align-items:center;">
+                                <button class="btn-mini" onclick="openCustomerProfile(${item.id}, '${item.name}')" title="فتح ملف العميل" style="background:transparent; border:none; font-size:16px; cursor:pointer; padding:0;">📄</button>
+                                
                                 <button class="btn-mini b-part" style="padding:6px 8px; font-size:11px; border-radius:4px;" onclick="showCustPartPay(${item.id})" title="دفع جزء من المبلغ">➖ جزئي</button>
                                 <button class="btn-mini b-add-more" style="padding:6px 8px; font-size:11px; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="payAndRemoveCustomerDebt(${item.id})" title="دفع المبلغ بالكامل ومسح الحساب">✔ كامل</button>
                             </div>
@@ -3387,7 +3389,7 @@ console.log("نتائج الفحص:", {
                         </td>
                     </tr>`;
                 }).join('');
-
+        
                 let tableHeader = `<thead><tr><th class="serial-cell" style="width:40px;">ت</th><th>الاسم</th><th>المبلغ</th><th>إجراء التحصيل</th></tr></thead>`;
 
                 container.innerHTML = `
