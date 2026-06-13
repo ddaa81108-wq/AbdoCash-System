@@ -4553,3 +4553,106 @@ function hideCustPartPay(id) {
     let input = document.getElementById(`cust-part-input-${id}`);
     if(input) input.value = '';
 }
+
+// [1 و 2] دالة تحديث الحقول وحفظ الشغل الجديد والتسديد فوراً بدون كسور
+function updateDebtField(pagesKey, id, field, value) {
+    // تحويل القيمة لرقم صحيح وإلغاء أي كسور عشرية تماماً
+    let val = Math.floor(Number(value) || 0); 
+
+    // تحديد كشاف اليوم النشط بناءً على القسم المفتوح
+    let indexKey = 'activeCustomerPageIndex';
+    if (pagesKey === 'company_pages') indexKey = 'activeCompanyPageIndex';
+    if (pagesKey === 'wholesale_pages') indexKey = 'activeWholesalePageIndex';
+
+    let activeIndex = window[indexKey] || 0;
+
+    if (sysDB[pagesKey] && sysDB[pagesKey][activeIndex]) {
+        // البحث باستخدام المطابقة المرنة لمنع تعارض أنواع البيانات
+        let targetItem = sysDB[pagesKey][activeIndex].debts.find(d => d.id == id);
+        if (targetItem) {
+            targetItem[field] = val;
+            saveDB();
+            renderActiveSection(); // تحديث الشاشة فوراً لتحديث الإجمالي والباقي
+        }
+    }
+}
+
+// [3] دالة فتح نافذة العمليات الحسابية المعقدة لـ الشركات وكبار العملاء
+function openTransactionModal(pagesKey, id, name) {
+    window.currentTransactionPagesKey = pagesKey;
+    window.currentTransactionItemId = id;
+
+    let modal = document.getElementById('transactionModal');
+    if (!modal) {
+        // إنشاء نافذة العمليات برمجياً في حال عدم وجودها لمنع الأخطاء
+        let modalHtml = `
+            <div id="transactionModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; font-family:Tajawal,sans-serif;">
+                <div style="background:var(--bg-card,#1e293b); border:2px solid var(--primary,#38bdf8); border-radius:12px; padding:25px; width:340px; box-shadow:0 10px 25px rgba(0,0,0,0.5); text-align:center; color:#fff;">
+                    <h3 style="margin-top:0; font-size:16px; color:var(--primary,#38bdf8);" id="transModalTitle">عمليات حسابية</h3>
+                    <div style="margin:20px 0; display:flex; gap:8px; justify-content:center;">
+                        <input type="number" id="modalTransAmount" class="glass-input" placeholder="المبلغ" style="width:90px; text-align:center; font-weight:900; padding:8px; border-radius:6px;">
+                        <input type="text" id="modalTransDetails" class="glass-input" placeholder="البيان..." style="width:160px; text-align:center; padding:8px; border-radius:6px;">
+                    </div>
+                    <div style="display:flex; gap:10px; justify-content:center;">
+                        <button onclick="submitTransactionItem()" style="background:var(--success,#10b981); color:#fff; border:none; padding:8px 20px; border-radius:6px; cursor:pointer; font-weight:900;">✔️ تسجيل</button>
+                        <button onclick="closeTransactionModal()" style="background:var(--danger,#ef4444); color:#fff; border:none; padding:8px 20px; border-radius:6px; cursor:pointer; font-weight:900;">❌ إغلاق</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('transactionModal');
+    }
+
+    document.getElementById('transModalTitle').innerText = `➕ عمليات: ${name}`;
+    document.getElementById('modalTransAmount').value = '';
+    document.getElementById('modalTransDetails').value = '';
+    modal.style.display = 'flex';
+}
+
+// دالة إغلاق نافذة العمليات
+function closeTransactionModal() {
+    let modal = document.getElementById('transactionModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// دالة حفظ وتنفيذ العملية الحسابية المعقدة داخل دفتر العميل
+function submitTransactionItem() {
+    let pagesKey = window.currentTransactionPagesKey;
+    let id = window.currentTransactionItemId;
+
+    let amountInput = document.getElementById('modalTransAmount');
+    let detailsInput = document.getElementById('modalTransDetails');
+
+    if (!amountInput || amountInput.value.trim() === '') {
+        alert('الرجاء إدخال المبلغ!');
+        return;
+    }
+
+    let amt = Math.floor(Number(amountInput.value) || 0); // رقم صحيح بدون فكة
+    let details = detailsInput ? detailsInput.value.trim() : 'عملية حسابية';
+
+    let indexKey = 'activeCustomerPageIndex';
+    if (pagesKey === 'company_pages') indexKey = 'activeCompanyPageIndex';
+    if (pagesKey === 'wholesale_pages') indexKey = 'activeWholesalePageIndex';
+
+    let activeIndex = window[indexKey] || 0;
+
+    if (sysDB[pagesKey] && sysDB[pagesKey][activeIndex]) {
+        let targetItem = sysDB[pagesKey][activeIndex].debts.find(d => d.id == id);
+        if (targetItem) {
+            if (!targetItem.transactions) targetItem.transactions = [];
+            
+            // دفع العملية الحسابية في سجل العميل
+            targetItem.transactions.push({
+                id: Date.now(),
+                result: amt,
+                note: details
+            });
+
+            saveDB();
+            renderActiveSection();
+            closeTransactionModal();
+        }
+    }
+}
