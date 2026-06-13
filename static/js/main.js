@@ -4395,6 +4395,22 @@ window.openCustomerProfile = function(clientId, clientName){
     }
 };
 
+// دالة حذف السجلات للشركات وكبار العملاء
+function deleteDebtItem(pagesKey, id) {
+    if (!confirm('هل أنت متأكد من حذف هذا السجل نهائياً؟')) return;
+    
+    let indexKey = 'activeCustomerPageIndex';
+    if (pagesKey === 'company_pages') indexKey = 'activeCompanyPageIndex';
+    if (pagesKey === 'wholesale_pages') indexKey = 'activeWholesalePageIndex';
+    
+    let activeIndex = window[indexKey] || 0;
+    
+    if (sysDB[pagesKey] && sysDB[pagesKey][activeIndex]) {
+        sysDB[pagesKey][activeIndex].debts = sysDB[pagesKey][activeIndex].debts.filter(d => d.id !== id);
+        saveDB();
+        renderActiveSection();
+    }
+}
 window.closeCustomerProfile=function(){
     document.getElementById('clientProfileOverlay')?.remove();
 };
