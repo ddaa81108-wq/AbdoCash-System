@@ -3422,8 +3422,8 @@ console.log("نتائج الفحص:", {
                                 <button class="btn-mini" onclick="openCustomerProfile(${item.id}, '${item.name}')" title="فتح ملف العميل" style="background:transparent; border:none; font-size:16px; cursor:pointer; padding:0;">📄</button>
                                 
                                 <button class="btn-mini b-part" style="padding:6px 8px; font-size:11px; border-radius:4px;" onclick="showCustPartPay(${item.id})" title="دفع جزء من المبلغ">➖ جزئي</button>
-                                <button class="btn-mini b-add-more" style="padding:6px 8px; font-size:11px; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="payAndRemoveCustomerDebt(${item.id})" title="دفع المبلغ بالكامل ومسح الحساب">✔ كامل</button>
-                            </div>
+
+               <button class="btn-mini b-add-more" style="padding:6px 8px; font-size:11px; border-radius:4px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" onclick="softDelete('customers', ${item.id})" title="دفع المبلغ بالكامل ومسح الحساب">✔ كامل</button>                            </div>
                             <div id="cust-inline-${item.id}" style="display:none; gap:4px; justify-content:center; align-items:center;">
                                 <input type="number" id="cust-part-input-${item.id}" class="glass-input" style="width:65px; height:26px; padding:0 4px; text-align:center; font-size:13px; font-weight:900; color:#000; background:#fff;" placeholder="المبلغ" onkeydown="if(event.key==='Enter') submitCustPartPay(${item.id})">
                                 <button class="btn-mini b-add-more" style="padding:4px 8px;" onclick="submitCustPartPay(${item.id})">✔</button>
