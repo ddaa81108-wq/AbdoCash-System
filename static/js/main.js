@@ -2142,20 +2142,66 @@ function tryLogin() {
             if(type === 'sub') showToast(`تم التسديد بنجاح`, "success");
         }
 
-        function softDelete(dbKey, id) {
-            let arr = getDbArr(dbKey);
-            let index = arr.findIndex(item => item.id === id);
-            if(index === -1) return;
-            let item = arr[index];
-            let sectionNames = { customers: 'ديون العملاء', companies: 'حسابات الشركات', wholesale: 'كبار العملاء', trusts: 'الودائع والأمانات' };
-            addToTrashBin(item, dbKey, sectionNames[dbKey] || dbKey);
-            logAction(`حذف حساب [${item.name}] — القيمة: ${Math.floor(item.amount)} د.ل`, sectionNames[dbKey] || dbKey);
-            arr.splice(index, 1);
-            setDbArr(dbKey, arr); saveDB(); renderActiveSection();
-            let toastId = Date.now();
-            deletedItemsStore[toastId] = { item: item, originalIndex: index, dbKey: dbKey };
-            showUndoToast(toastId, item.name);
-        }
+       function softDelete(dbKey, id) {
+
+    let arr = getDbArr(dbKey);
+
+    let index = arr.findIndex(item => item.id === id);
+
+    if (index === -1) return;
+
+    let item = arr[index];
+
+    let sectionNames = {
+        customers: 'ديون العملاء',
+        companies: 'حسابات الشركات',
+        wholesale: 'كبار العملاء',
+        trusts: 'الودائع والأمانات'
+    };
+
+    // تحديد قيمة الحذف حسب نوع القسم
+    let value =
+        item.amount ??
+        item.remaining ??
+        item.total ??
+        item.old_debt ??
+        0;
+
+    value = Math.floor(Number(value || 0));
+
+    // أرشفة
+    addToTrashBin(
+        { ...item },
+        dbKey,
+        sectionNames[dbKey] || dbKey
+    );
+
+    // سجل العمليات
+    logAction(
+        `حذف حساب [${item.name || '-'}] — القيمة: ${value} د.ل`,
+        sectionNames[dbKey] || dbKey
+    );
+
+    // مسح
+    arr.splice(index, 1);
+
+    setDbArr(dbKey, arr);
+
+    saveDB();
+
+    renderActiveSection();
+
+    // تراجع
+    let toastId = Date.now();
+
+    deletedItemsStore[toastId] = {
+        item: { ...item },
+        originalIndex: index,
+        dbKey: dbKey
+    };
+
+    showUndoToast(toastId, item.name);
+}
 
         function showUndoToast(toastId, name) {
             const container = document.getElementById('toast-container');
