@@ -4455,3 +4455,46 @@ function addNewDebtClient(pagesKey) {
     renderActiveSection();
     nameInput.focus(); 
 }
+
+// دالة إنشاء يوم جديد (ترحيل الأرصدة) للشركات وكبار العملاء
+function createNewDebtDay(pagesKey, indexKeyStr) {
+    if (!confirm('هل أنت متأكد من إغلاق اليوم الحالي وترحيل الأرصدة ليوم جديد؟')) return;
+
+    let activeIndex = window[indexKeyStr] || 0;
+    let currentPage = sysDB[pagesKey][activeIndex];
+
+    if (!currentPage || !currentPage.debts) return;
+
+    // حساب الأرصدة المتبقية لكل عميل وترحيلها (بدون كسور)
+    let newDebts = currentPage.debts.map(item => {
+        let oldDebt = Number(item.old_debt || 0);
+        let newWork = Number(item.new_work || 0);
+        if (item.transactions && Array.isArray(item.transactions)) {
+            newWork += item.transactions.reduce((s, t) => s + Number(t.result || 0), 0);
+        }
+        let paid = Number(item.payment || 0);
+        let rem = Math.floor((oldDebt + newWork) - paid); // تقريب لمنع الكسور
+
+        return {
+            id: item.id, // الاحتفاظ بنفس العميل
+            name: item.name,
+            old_debt: rem, // ترحيل الباقي المستحق كـ (باقي قديم)
+            new_work: 0,
+            payment: 0,
+            transactions: []
+        };
+    });
+
+    // إضافة اليوم الجديد في أول الدفتر
+    let newDate = new Date().toISOString().split('T')[0];
+    sysDB[pagesKey].unshift({
+        date: newDate,
+        debts: newDebts
+    });
+
+    // تفعيل اليوم الجديد ليكون هو المعروض
+    window[indexKeyStr] = 0;
+
+    saveDB();
+    renderActiveSection();
+}
