@@ -4539,21 +4539,22 @@ function createNewDebtDay(pagesKey, indexKeyStr) {
 }
 
 
-// دالة المسح الكامل (دفع المبلغ بالكامل ومسح الحساب) - قسم ديون العملاء
+// دالة المسح الكامل الشاملة لكل الأيام - قسم ديون العملاء
 function payAndRemoveCustomerDebt(id) {
-    if (!confirm('هل أنت متأكد من دفع المبلغ بالكامل ومسح حساب هذا العميل نهائياً؟')) return;
+    if (!confirm('هل أنت متأكد من دفع المبلغ بالكامل ومسح حساب هذا العميل نهائياً من جميع الأيام؟')) return;
 
-    if (sysDB && sysDB.customers) {
-        // مسح العميل من الدفتر
-        sysDB.customers = sysDB.customers.filter(c => c.id !== id);
+    if (sysDB && sysDB.customer_pages) {
+        // مسح العميل من كل الأيام عشان ما يرجعش بعد الريفرش
+        sysDB.customer_pages.forEach(page => {
+            page.debts = (page.debts || []).filter(c => c.id != id);
+        });
         
-        // الحفظ عشان العميل ميرجعش بعد الريفرش
         saveDB(); 
         renderActiveSection();
     }
 }
 
-// دالة الدفع الجزئي - قسم ديون العملاء
+// دالة الدفع الجزئي والمسح الشامل (لو سدد بالكامل) - قسم ديون العملاء
 function submitCustPartPay(id) {
     let input = document.getElementById(`cust-part-input-${id}`);
     if (!input || input.value.trim() === '') {
@@ -4561,16 +4562,20 @@ function submitCustPartPay(id) {
         return;
     }
 
-    let partAmount = Math.floor(Number(input.value) || 0); // تقريب لمنع الكسور
+    let partAmount = Math.floor(Number(input.value) || 0); 
+    let activeIndex = window.activeCustomerPageIndex || 0;
     
-    if (sysDB && sysDB.customers) {
-        let customer = sysDB.customers.find(c => c.id === id);
+    if (sysDB && sysDB.customer_pages && sysDB.customer_pages[activeIndex]) {
+        // بنخصم من اليوم النشط المفتوح قدامنا
+        let customer = sysDB.customer_pages[activeIndex].debts.find(c => c.id == id);
         if (customer) {
             customer.amount = Math.floor(customer.amount - partAmount);
             
-            // لو سدد المبلغ كله أو أكتر، امسح الحساب بالكامل
+            // لو سدد المبلغ كله، نلف على كل الأيام ونمسحه نهائياً
             if (customer.amount <= 0) {
-                sysDB.customers = sysDB.customers.filter(c => c.id !== id);
+                sysDB.customer_pages.forEach(page => {
+                    page.debts = (page.debts || []).filter(c => c.id != id);
+                });
             }
             
             saveDB();
