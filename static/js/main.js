@@ -4498,3 +4498,58 @@ function createNewDebtDay(pagesKey, indexKeyStr) {
     saveDB();
     renderActiveSection();
 }
+
+
+// دالة المسح الكامل (دفع المبلغ بالكامل ومسح الحساب) - قسم ديون العملاء
+function payAndRemoveCustomerDebt(id) {
+    if (!confirm('هل أنت متأكد من دفع المبلغ بالكامل ومسح حساب هذا العميل نهائياً؟')) return;
+
+    if (sysDB && sysDB.customers) {
+        // مسح العميل من الدفتر
+        sysDB.customers = sysDB.customers.filter(c => c.id !== id);
+        
+        // الحفظ عشان العميل ميرجعش بعد الريفرش
+        saveDB(); 
+        renderActiveSection();
+    }
+}
+
+// دالة الدفع الجزئي - قسم ديون العملاء
+function submitCustPartPay(id) {
+    let input = document.getElementById(`cust-part-input-${id}`);
+    if (!input || input.value.trim() === '') {
+        hideCustPartPay(id);
+        return;
+    }
+
+    let partAmount = Math.floor(Number(input.value) || 0); // تقريب لمنع الكسور
+    
+    if (sysDB && sysDB.customers) {
+        let customer = sysDB.customers.find(c => c.id === id);
+        if (customer) {
+            customer.amount = Math.floor(customer.amount - partAmount);
+            
+            // لو سدد المبلغ كله أو أكتر، امسح الحساب بالكامل
+            if (customer.amount <= 0) {
+                sysDB.customers = sysDB.customers.filter(c => c.id !== id);
+            }
+            
+            saveDB();
+            renderActiveSection();
+        }
+    }
+}
+
+// دوال إظهار وإخفاء مربع الدفع الجزئي (عشان لو مش شغالين عندك)
+function showCustPartPay(id) {
+    document.getElementById(`cust-btns-${id}`).style.display = 'none';
+    document.getElementById(`cust-inline-${id}`).style.display = 'flex';
+    document.getElementById(`cust-part-input-${id}`).focus();
+}
+
+function hideCustPartPay(id) {
+    document.getElementById(`cust-btns-${id}`).style.display = 'flex';
+    document.getElementById(`cust-inline-${id}`).style.display = 'none';
+    let input = document.getElementById(`cust-part-input-${id}`);
+    if(input) input.value = '';
+}
