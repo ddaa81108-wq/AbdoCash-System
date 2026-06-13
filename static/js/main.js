@@ -4414,3 +4414,44 @@ function deleteDebtItem(pagesKey, id) {
 window.closeCustomerProfile=function(){
     document.getElementById('clientProfileOverlay')?.remove();
 };
+
+// دالة إضافة عميل/شركة جديدة (لقسم الشركات وكبار العملاء)
+function addNewDebtClient(pagesKey) {
+    let nameInput = document.getElementById('newClientName');
+    let oldDebtInput = document.getElementById('newClientOldDebt');
+
+    if (!nameInput || nameInput.value.trim() === '') {
+        alert('الرجاء إدخال اسم العميل أو الشركة!');
+        if (nameInput) nameInput.focus();
+        return;
+    }
+
+    let name = nameInput.value.trim();
+    let oldDebt = parseFloat(oldDebtInput.value) || 0;
+
+    let indexKey = 'activeCustomerPageIndex'; 
+    if (pagesKey === 'company_pages') indexKey = 'activeCompanyPageIndex';
+    if (pagesKey === 'wholesale_pages') indexKey = 'activeWholesalePageIndex';
+
+    let activeIndex = window[indexKey] || 0;
+
+    if (!sysDB[pagesKey]) sysDB[pagesKey] = [];
+    if (!sysDB[pagesKey][activeIndex]) sysDB[pagesKey][activeIndex] = { date: new Date().toISOString().split('T')[0], debts: [] };
+    if (!sysDB[pagesKey][activeIndex].debts) sysDB[pagesKey][activeIndex].debts = [];
+
+    sysDB[pagesKey][activeIndex].debts.push({
+        id: Date.now(),
+        name: name,
+        old_debt: oldDebt,
+        new_work: 0,
+        payment: 0,
+        transactions: []
+    });
+
+    nameInput.value = '';
+    oldDebtInput.value = '';
+
+    saveDB();
+    renderActiveSection();
+    nameInput.focus(); 
+}
