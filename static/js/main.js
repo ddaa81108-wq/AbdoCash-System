@@ -791,22 +791,61 @@ function tryLogin() {
 
         // ===== saveDB الآمنة المبكرة =====
         let _saveDBBusy = false;
-        function saveDB() {
-         if (!sysDB.trash_bin) sysDB.trash_bin = [];       
-            if(_saveDBBusy) return;
-            _saveDBBusy = true;
-            try {
-                localStorage.setItem('ABDO_SYSTEM_FINAL_DB', JSON.stringify(sysDB));
-            } catch(e) {}
-            // الوظائف التالية تعمل فقط بعد تحميل الواجهة
-            try { if(typeof setSaveStatus === 'function') setSaveStatus('saving', '⏳ حفظ...'); } catch(e) {}
-            try { if(typeof updateDataLists === 'function') updateDataLists(); } catch(e) {}
-            try { if(typeof updateLastSaveText === 'function') updateLastSaveText(); } catch(e) {}
-            setTimeout(() => {
-                _saveDBBusy = false;
-                try { if(typeof setSaveStatus === 'function') setSaveStatus('ok', 'جاهز'); } catch(e) {}
-            }, 300);
+     function saveDB() {
+    if (!sysDB.trash_bin) sysDB.trash_bin = [];       
+    if(_saveDBBusy) return;
+    _saveDBBusy = true;
+    
+    try {
+        let dbText = '';
+        let dbSizeMB = 0;
+
+        // تأمين عملية تحويل وتجهيز البيانات
+        try {
+            dbText = JSON.stringify(sysDB);
+            dbSizeMB = new Blob([dbText]).size / (1024 * 1024);
+        } catch(err) {
+            throw new Error('فشل تجهيز البيانات للحفظ (تأكد من عدم وجود بيانات تالفة)');
         }
+        
+        // الحفظ الفعلي - ترك القرار للمتصفح
+        localStorage.setItem('ABDO_SYSTEM_FINAL_DB', dbText);
+        
+        // تحذير فقط — بدون منع الحفظ
+        let sizeWarning = '';
+        let icon = '🟢';
+        
+        if (dbSizeMB > 3.5) {
+            sizeWarning = ' ⚠️ الحجم كبير';
+            icon = '🟠';
+        }
+        if (dbSizeMB > 4.5) {
+            sizeWarning = ' 🚨 قرب الحد الأقصى';
+            icon = '🔴';
+        }
+
+        let sizeIndicator = ` (${dbSizeMB.toFixed(2)}MB / 5MB) ${icon}${sizeWarning}`;
+
+        // تحديث الواجهة
+        try { if(typeof setSaveStatus === 'function') setSaveStatus('saving', '⏳ حفظ...'); } catch(e) {}
+        try { if(typeof updateDataLists === 'function') updateDataLists(); } catch(e) {}
+        try { if(typeof updateLastSaveText === 'function') updateLastSaveText(); } catch(e) {}
+        
+        setTimeout(() => {
+            _saveDBBusy = false;
+            // دمج العداد مع رسالة الجاهزية
+            try { if(typeof setSaveStatus === 'function') setSaveStatus('ok', 'جاهز' + sizeIndicator); } catch(e) {}
+        }, 300);
+
+    } catch(e) {
+        // لو المتصفح رفض أو التحويل فشل
+        _saveDBBusy = false;
+        console.error("خطأ كارثي في الحفظ:", e);
+        try { if(typeof setSaveStatus === 'function') setSaveStatus('error', '❌ فشل الحفظ!'); } catch(err) {}
+        
+        alert(`⚠️ تحذير خطير: المنظومة فشلت في حفظ البيانات!\n\nالسبب: ${e.message || 'مساحة التخزين ممتلئة'}\n\nالرجاء عمل نسخة احتياطية (Backup) أو رفع بياناتك للسحابة فوراً، ثم تفريغ سلة المحذوفات لتوفير مساحة.`);
+    }
+}
 
         // ===== استعادة طارئة من الشاشة =====
         function emergencyRecover() {
